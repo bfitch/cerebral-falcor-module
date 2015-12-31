@@ -1,8 +1,8 @@
 {
   "name": "cerebral-falcor-module",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "description": "Cerebral integration for Netflix's Falcor",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "webpack --devtool source-map --progress --colors --watch",
     "build": "webpack --progress --colors"
@@ -10,14 +10,16 @@
   "peerDependencies": {
     "cerebral": "cerebral/cerebral#v0.28.0"
   },
+  "dependencies": {
+    "deep-diff": "^0.3.3",
+    "falcor": "Netflix/falcor#0.x",
+    "falcor-expand-cache": "0.0.2",
+    "falcor-http-datasource": "^0.1.2"
+  },
   "devDependencies": {
     "babel": "^5.8.23",
     "babel-loader": "^5.3.2",
     "babel-runtime": "^5.8.24",
-    "deep-diff": "^0.3.3",
-    "falcor": "Netflix/falcor#0.x",
-    "falcor-expand-cache": "0.0.2",
-    "falcor-http-datasource": "^0.1.2",
     "webpack": "^1.12.2"
   },
   "repository": {
