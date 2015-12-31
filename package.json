@@ -7,6 +7,15 @@
     "dev": "webpack --devtool source-map --progress --colors --watch",
     "build": "webpack --progress --colors"
   },
+  "devDependencies": {
+    "babel": "^5.8.23",
+    "babel-loader": "^5.3.2",
+    "deep-diff": "^0.3.3",
+    "falcor": "Netflix/falcor#0.x",
+    "falcor-expand-cache": "0.0.2",
+    "falcor-http-datasource": "^0.1.2",
+    "webpack": "^1.12.2"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/bfitch/cerebral-falcor-module.git"
