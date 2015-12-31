@@ -4,7 +4,7 @@ Transparently syncs your [cerebral](http://www.cerebraljs.com/) model with [falc
 
 Whenver a change is fired by falcor, `cererbral-falcor` diffs falcor's cache with your cererbral model's current state. It calculates the difference, patching the changed data to cerebral. This happens in the background, allowing your components to synchronosly bind to cerebral and update the UI.
 
-Basic Todo Demo: https://github.com/bfitch/cerebral-falcor-todos
+**Basic Todo Demo:** https://github.com/bfitch/cerebral-falcor-todos
 
 Install
 ------------
