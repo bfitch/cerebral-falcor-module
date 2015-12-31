@@ -1,0 +1,26 @@
+{
+  "name": "cerebral-falcor-module",
+  "version": "1.0.0",
+  "description": "Cerebral integration for Netflix's Falcor",
+  "main": "index.js",
+  "scripts": {
+    "dev": "webpack --devtool source-map --progress --colors --watch",
+    "build": "webpack --progress --colors"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bfitch/cerebral-falcor-module.git"
+  },
+  "keywords": [
+    "cerebral",
+    "falcor",
+    "netflix",
+    "react"
+  ],
+  "author": "Brian Fitch",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bfitch/cerebral-falcor-module/issues"
+  },
+  "homepage": "https://github.com/bfitch/cerebral-falcor-module"
+}
