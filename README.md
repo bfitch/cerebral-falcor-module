@@ -46,3 +46,7 @@ TODO
 - accept falcor initialization options `{}`
 - perf audit
 - tests
+
+Thanks
+--------
+- @ekosz for his `falcor-expand-cache` package, which makes the diff and patch strategy possible. Also for `redux-falcor` for the general approach.
