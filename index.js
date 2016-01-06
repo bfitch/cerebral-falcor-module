@@ -4,16 +4,18 @@ import _expandCache from 'falcor-expand-cache';
 import _diff from 'deep-diff';
 
 export default function(options, expandCache=_expandCache, diff=_diff) {
-  const model = options.model;
+  const model     = options.model;
+  const namespace = options.namespace || 'falcor';
+  const source    = options.source    || '/model.json';
 
   const falcorModel = new falcor.Model({
-    source: new HttpDataSource(options.source)
+    source: new HttpDataSource(source)
   });
 
   falcorModel._root.onChange = function() {
     const falcorCache   = expandCache(falcorModel.getCache());
-    const falcorChanges = diff(model.tree.get(), falcorCache);
-    falcorChanges.forEach(change => model.tree.set(change.path, change.rhs));
+    const falcorChanges = diff(model.tree.get([namespace]), falcorCache);
+    falcorChanges.forEach(change => model.tree.set([namespace].concat(change.path), change.rhs));
   }
 
   return {
