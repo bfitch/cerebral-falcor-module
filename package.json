@@ -1,6 +1,6 @@
 {
   "name": "cerebral-falcor-module",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Cerebral integration for Netflix's Falcor",
   "main": "dist/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "webpack --progress --colors"
   },
   "peerDependencies": {
-    "cerebral": "cerebral/cerebral#v0.28.0"
+    "cerebral": "^0.28.0"
   },
   "dependencies": {
     "deep-diff": "^0.3.3",
