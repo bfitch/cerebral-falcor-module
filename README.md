@@ -4,13 +4,15 @@ Transparently syncs your [cerebral](http://www.cerebraljs.com/) model with [falc
 
 Whenver a change is fired by falcor, `cererbral-falcor` diffs falcor's cache with your cererbral model's current state. It calculates the difference, patching the changed data to cerebral. This happens in the background, allowing your components to synchronosly bind to cerebral and update the UI.
 
+*Note*: `falcor --> cerebral` data synchronization is *unidirectional*, meaning updates to the falcor cache are pushed to cerebral, but not vice-versa. All changes to falcor data are through the exposed falcor API (get, set, call).
+
+Falcor's data is namespaced in your model to prevent overwriting cerebral only data. The defalut namespace for retreiving falcor data is falcor: `{ falcor: {} }`.
+
 **Basic Todo Demo:** https://github.com/bfitch/cerebral-falcor-todos
 
 Install
 ------------
 `npm install cerebral-falcor-module`
-
-*Note*: only works with `cerebral v0.28.0`, not currently published on npm
 
 Usage
 ------------
@@ -22,8 +24,7 @@ import FalcorModule from 'cerebral-falcor-module';
 
 controller.register({
   falcor: FalcorModule({
-    source: '/model.json',
-    model: model
+    model: model // source defaults to: '/model.json',
   })
 });
 ```
@@ -36,6 +37,13 @@ const getTodosLength = ({output, services}) => {
     catch(response => output.error);
 }
 ``` 
+
+- get state from cerebral:
+```js
+({state}) => {
+  state.get(['falcor', 'todos']);
+}
+```
 
 API (Incomplete)
 --------
