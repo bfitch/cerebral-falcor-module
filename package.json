@@ -1,6 +1,6 @@
 {
   "name": "cerebral-falcor-module",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Cerebral integration for Netflix's Falcor",
   "main": "dist/index.js",
   "scripts": {
