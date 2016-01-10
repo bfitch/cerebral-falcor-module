@@ -28,6 +28,12 @@ controller.register({
   })
 });
 ```
+- Define the namespace in baobab:
+```js
+const model = Model({
+  falcor: {} // can also define a custom name
+});
+```
 - falcor will now be available to your actions as a `service`:
  
 ```js
