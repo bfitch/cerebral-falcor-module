@@ -8,7 +8,7 @@
     "build": "webpack --progress --colors"
   },
   "peerDependencies": {
-    "cerebral": "^0.28.0"
+    "cerebral": ">=0.31.0"
   },
   "dependencies": {
     "deep-diff": "^0.3.3",
