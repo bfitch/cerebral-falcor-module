@@ -146,7 +146,7 @@ module.exports =
 	      }
 	    }];
 	
-	    module.signals({ mergeFalcorWithModel: mergeFalcorWithModel });
+	    module.signalsSync({ mergeFalcorWithModel: mergeFalcorWithModel });
 	
 	    var source = new _falcorHttpDatasource2.default(dataSource);
 	    var falcorModel = new _falcor2.default.Model({ source: source });

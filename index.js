@@ -59,7 +59,7 @@ export default (options = {})=> {
       }
     ];
 
-    module.signals({mergeFalcorWithModel});
+    module.signalsSync({mergeFalcorWithModel});
 
     const source      = new HTTPDataSource(dataSource);
     const falcorModel = new falcor.Model({source});
