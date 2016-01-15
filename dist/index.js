@@ -2,41 +2,41 @@ module.exports =
 /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
-/******/
+
 /******/ 	// The require function
 /******/ 	function __webpack_require__(moduleId) {
-/******/
+
 /******/ 		// Check if module is in cache
 /******/ 		if(installedModules[moduleId])
 /******/ 			return installedModules[moduleId].exports;
-/******/
+
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = installedModules[moduleId] = {
 /******/ 			exports: {},
 /******/ 			id: moduleId,
 /******/ 			loaded: false
 /******/ 		};
-/******/
+
 /******/ 		// Execute the module function
 /******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/
+
 /******/ 		// Flag the module as loaded
 /******/ 		module.loaded = true;
-/******/
+
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
-/******/
-/******/
+
+
 /******/ 	// expose the modules object (__webpack_modules__)
 /******/ 	__webpack_require__.m = modules;
-/******/
+
 /******/ 	// expose the module cache
 /******/ 	__webpack_require__.c = installedModules;
-/******/
+
 /******/ 	// __webpack_public_path__
 /******/ 	__webpack_require__.p = "";
-/******/
+
 /******/ 	// Load entry module and return exports
 /******/ 	return __webpack_require__(0);
 /******/ })
@@ -53,69 +53,69 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
 	exports.falcorGet = falcorGet;
 	exports.falcorCall = falcorCall;
-	
+
 	var _falcor = __webpack_require__(2);
-	
+
 	var _falcor2 = _interopRequireDefault(_falcor);
-	
+
 	var _falcorHttpDatasource = __webpack_require__(157);
-	
+
 	var _falcorHttpDatasource2 = _interopRequireDefault(_falcorHttpDatasource);
-	
+
 	var _falcorExpandCache = __webpack_require__(162);
-	
+
 	var _falcorExpandCache2 = _interopRequireDefault(_falcorExpandCache);
-	
+
 	var _deepDiff = __webpack_require__(163);
-	
+
 	var _deepDiff2 = _interopRequireDefault(_deepDiff);
-	
+
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-	
+
 	function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } step("next"); }); }; }
-	
+
 	exports.default = function () {
 	  var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-	
+
 	  return function (module) {
 	    module.alias('cerebral-module-falcor');
-	
+
 	    var fullOptions = Object.assign({
 	      initialState: {},
 	      dataSource: '/model.json',
-	      verbose: true
+	      verbose: false
 	    }, options);
 	    var initialState = fullOptions.initialState;
 	    var dataSource = fullOptions.dataSource;
 	    var verbose = fullOptions.verbose;
-	
+
 	    module.state(initialState);
-	
+
 	    // Calculate falcor changes and apply them to the module's scoped state
-	    var mergeFalcorWithModel = [function (_ref) {
+	    var syncCerebral = [function (_ref) {
 	      var module = _ref.module;
-	
+
 	      var falcorCache = falcorModel.getCache();
 	      var expandedFalcorCache = (0, _falcorExpandCache2.default)(falcorCache);
 	      var currentState = module.state.toJS();
 	      var diffs = (0, _deepDiff2.default)(currentState, expandedFalcorCache);
-	
+
 	      if (diffs) {
 	        if (verbose) console.log('Falcor merging ' + diffs.length + ' changes from server.');
-	
+
 	        diffs.forEach(function (diff) {
 	          var path = diff.path;
 	          var rhs = diff.rhs;
 	          var kind = diff.kind;
-	
+
 	          if (verbose) console.log('falcor updating \'' + path + '\'');
-	
+
 	          switch (kind) {
 	            case 'N':
 	              // newly added property/element
@@ -138,19 +138,19 @@ module.exports =
 	              // I think this will work but haven't tested yet.
 	              var index = diff.index;
 	              var item = diff.item;
-	
+
 	              module.state.splice(index, 1, item);
 	              break;
 	          }
 	        });
 	      }
 	    }];
-	
-	    module.signalsSync({ mergeFalcorWithModel: mergeFalcorWithModel });
-	
+
+	    module.signalsSync({ syncCerebral: syncCerebral });
+
 	    var source = new _falcorHttpDatasource2.default(dataSource);
 	    var falcorModel = new _falcor2.default.Model({ source: source });
-	
+
 	    module.services({
 	      get: function get(query) {
 	        return falcorModel.get(query);
@@ -158,29 +158,38 @@ module.exports =
 	      set: function set(jsonGraph) {
 	        return falcorModel.set(jsonGraph);
 	      },
-	      call: function call(callPath, args) {
-	        var jsonArgs = typeof args == 'string' ? args : JSON.stringify(args);
-	        return falcorModel.call(callPath, jsonArgs);
+	      call: function call(functionPath) {
+	        var args = arguments.length <= 1 || arguments[1] === undefined ? [] : arguments[1];
+	        var refSuffixes = arguments.length <= 2 || arguments[2] === undefined ? [] : arguments[2];
+	        var thisPaths = arguments.length <= 3 || arguments[3] === undefined ? [] : arguments[3];
+
+	        // functionPath - {Path}            the path to the function to invoke
+	        // args         - {Array.<Object>}  the arguments to pass to the function
+	        // refSuffixes  - {Array.<PathSet>} paths to retrieve from the targets of JSONGraph References in the function's response.
+	        // thisPaths    - {Array.<PathSet>} paths to retrieve from function's this object after successful function execution
+	        return falcorModel.call(functionPath, args, refSuffixes, thisPaths);
 	      }
 	    });
-	
+
 	    // call merge signal on falcor changes
-	    falcorModel._root.onChange = module.getSignals().mergeFalcorWithModel;
-	
+	    falcorModel._root.onChange = module.getSignals().syncCerebral;
+
 	    // meta
 	    return { warning: 'Falcor module is super experimental, use at your own risk!' };
 	  };
 	};
-	
-	function falcorGet(path, _ref2) {
+
+	function falcorGet(path) {
+	  var _ref2 = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
 	  var _ref2$debug = _ref2.debug;
-	  var debug = _ref2$debug === undefined ? true : _ref2$debug;
+	  var debug = _ref2$debug === undefined ? false : _ref2$debug;
 	  var _ref2$verbose = _ref2.verbose;
-	  var verbose = _ref2$verbose === undefined ? true : _ref2$verbose;
-	
+	  var verbose = _ref2$verbose === undefined ? false : _ref2$verbose;
+
 	  return function () {
 	    var _this = this;
-	
+
 	    var ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(_ref3) {
 	      var output = _ref3.output;
 	      var module = _ref3.module;
@@ -193,22 +202,22 @@ module.exports =
 	              fullPath = Array.isArray(path) ? path : [path];
 	              _context.next = 4;
 	              return module['cerebral-module-falcor'].services.get(fullPath);
-	
+
 	            case 4:
 	              response = _context.sent;
-	
+
 	              output(response.json);
 	              _context.next = 13;
 	              break;
-	
+
 	            case 8:
 	              _context.prev = 8;
 	              _context.t0 = _context['catch'](0);
-	
+
 	              if (verbose) console.error(_context.t0);
 	              if (debug) debugger;
 	              output.error(_context.t0);
-	
+
 	            case 13:
 	            case 'end':
 	              return _context.stop();
@@ -216,72 +225,78 @@ module.exports =
 	        }
 	      }, _callee, _this, [[0, 8]]);
 	    }));
-	
-	    return function (_x2) {
+
+	    return function (_x6) {
 	      return ref.apply(this, arguments);
 	    };
 	  }();
 	}
-	
-	function falcorCall(path, _ref4) {
+
+	function falcorCall(path) {
+	  var _ref4 = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
 	  var _ref4$debug = _ref4.debug;
-	  var debug = _ref4$debug === undefined ? true : _ref4$debug;
+	  var debug = _ref4$debug === undefined ? false : _ref4$debug;
 	  var _ref4$verbose = _ref4.verbose;
-	  var verbose = _ref4$verbose === undefined ? true : _ref4$verbose;
-	
+	  var verbose = _ref4$verbose === undefined ? false : _ref4$verbose;
+
 	  return function () {
 	    var _this2 = this;
-	
+
 	    var ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(_ref5) {
 	      var input = _ref5.input;
 	      var output = _ref5.output;
 	      var module = _ref5.module;
-	
-	      var falcorArgs, _fullPath, _response;
-	
+
+	      var falcorArgs, _input$falcorRefSuffi, falcorRefSuffixes, _input$falcorThisPath, falcorThisPaths, _fullPath, _response;
+
 	      return regeneratorRuntime.wrap(function _callee2$(_context2) {
 	        while (1) {
 	          switch (_context2.prev = _context2.next) {
 	            case 0:
 	              _context2.prev = 0;
 	              falcorArgs = input.falcorArgs;
-	
+	              _input$falcorRefSuffi = input.falcorRefSuffixes;
+	              falcorRefSuffixes = _input$falcorRefSuffi === undefined ? [] : _input$falcorRefSuffi;
+	              _input$falcorThisPath = input.falcorThisPaths;
+	              falcorThisPaths = _input$falcorThisPath === undefined ? [] : _input$falcorThisPath;
+
 	              if (falcorArgs) {
-	                _context2.next = 4;
+	                _context2.next = 8;
 	                break;
 	              }
-	
+
 	              throw new Error('Must have a falcorArgs object in the input or a call can\'t be made to Falcor.');
-	
-	            case 4:
+
+	            case 8:
 	              _fullPath = Array.isArray(path) ? path : [path];
-	              _context2.next = 7;
-	              return module['cerebral-module-falcor'].services.call(_fullPath, falcorArgs);
-	
-	            case 7:
-	              _response = _context2.sent;
-	
-	              output(_response.json);
-	              _context2.next = 16;
-	              break;
-	
+	              _context2.next = 11;
+	              return module['cerebral-module-falcor'].services.call(_fullPath, falcorArgs, falcorRefSuffixes, falcorThisPaths);
+
 	            case 11:
-	              _context2.prev = 11;
+	              _response = _context2.sent;
+
+	              output(_response.json);
+	              _context2.next = 20;
+	              break;
+
+	            case 15:
+	              _context2.prev = 15;
 	              _context2.t0 = _context2['catch'](0);
-	
+
 	              if (verbose) console.error(_context2.t0);
 	              if (debug) debugger;
 	              output.error(_context2.t0);
-	
-	            case 16:
+
+	            case 20:
 	            case 'end':
 	              return _context2.stop();
 	          }
 	        }
-	      }, _callee2, _this2, [[0, 11]]);
+	      }, _callee2, _this2, [[0, 15]]);
 	    }));
-	
-	    return function (_x3) {
+
+	    return function (_x8) {
 	      return ref.apply(this, arguments);
 	    };
 	  }();
@@ -292,19 +307,19 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	
+
 	function falcor(opts) {
 	    return new falcor.Model(opts);
 	}
-	
+
 	if (typeof Promise === "function") {
 	    falcor.Promise = Promise;
 	} else {
 	    falcor.Promise = __webpack_require__(3);
 	}
-	
+
 	module.exports = falcor;
-	
+
 	falcor.Model = __webpack_require__(12);
 
 
@@ -313,7 +328,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	module.exports = __webpack_require__(4)
 
 
@@ -322,7 +337,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	module.exports = __webpack_require__(5);
 	__webpack_require__(7);
 	__webpack_require__(8);
@@ -335,11 +350,11 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	var asap = __webpack_require__(6);
-	
+
 	function noop() {}
-	
+
 	// States:
 	//
 	// 0 - pending
@@ -348,13 +363,13 @@ module.exports =
 	// 3 - adopted the state of another promise, _value
 	//
 	// once the state is no longer pending (0) it is immutable
-	
+
 	// All `_` prefixed properties will be reduced to `_{random number}`
 	// at build time to obfuscate them and discourage their use.
 	// We don't use symbols or Object.defineProperty to fully hide them
 	// because the performance isn't good enough.
-	
-	
+
+
 	// to avoid using try/catch inside critical functions, we
 	// extract them to here.
 	var LAST_ERROR = null;
@@ -367,7 +382,7 @@ module.exports =
 	    return IS_ERROR;
 	  }
 	}
-	
+
 	function tryCallOne(fn, a) {
 	  try {
 	    return fn(a);
@@ -384,9 +399,9 @@ module.exports =
 	    return IS_ERROR;
 	  }
 	}
-	
+
 	module.exports = Promise;
-	
+
 	function Promise(fn) {
 	  if (typeof this !== 'object') {
 	    throw new TypeError('Promises must be constructed via new');
@@ -401,7 +416,7 @@ module.exports =
 	  doResolve(fn, this);
 	}
 	Promise._99 = noop;
-	
+
 	Promise.prototype.then = function(onFulfilled, onRejected) {
 	  if (this.constructor !== Promise) {
 	    return safeThen(this, onFulfilled, onRejected);
@@ -410,7 +425,7 @@ module.exports =
 	  handle(this, new Handler(onFulfilled, onRejected, res));
 	  return res;
 	};
-	
+
 	function safeThen(self, onFulfilled, onRejected) {
 	  return new self.constructor(function (resolve, reject) {
 	    var res = new Promise(noop);
@@ -477,7 +492,7 @@ module.exports =
 	  self._12 = newValue;
 	  finale(self);
 	}
-	
+
 	function reject(self, newValue) {
 	  self._37 = 2;
 	  self._12 = newValue;
@@ -489,13 +504,13 @@ module.exports =
 	  }
 	  self._59 = null;
 	}
-	
+
 	function Handler(onFulfilled, onRejected, promise){
 	  this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null;
 	  this.onRejected = typeof onRejected === 'function' ? onRejected : null;
 	  this.promise = promise;
 	}
-	
+
 	/**
 	 * Take a potentially misbehaving resolver function and make sure
 	 * onFulfilled and onRejected are only called once.
@@ -525,7 +540,7 @@ module.exports =
 /***/ function(module, exports) {
 
 	/* WEBPACK VAR INJECTION */(function(global) {"use strict";
-	
+
 	// Use the fastest means possible to execute a task in its own turn, with
 	// priority over other events including IO, animation, reflow, and redraw
 	// events in browsers.
@@ -545,7 +560,7 @@ module.exports =
 	    // Equivalent to push, but avoids a function call.
 	    queue[queue.length] = task;
 	}
-	
+
 	var queue = [];
 	// Once a flush has been requested, no further calls to `requestFlush` are
 	// necessary until the next `flush` completes.
@@ -562,7 +577,7 @@ module.exports =
 	// unbounded. To prevent memory exhaustion, the task queue will periodically
 	// truncate already-completed tasks.
 	var capacity = 1024;
-	
+
 	// The flush function processes all tasks that have been scheduled with
 	// `rawAsap` unless and until one of those tasks throws an exception.
 	// If a task throws an exception, `flush` ensures that its state will remain
@@ -595,17 +610,17 @@ module.exports =
 	    index = 0;
 	    flushing = false;
 	}
-	
+
 	// `requestFlush` is implemented using a strategy based on data collected from
 	// every available SauceLabs Selenium web driver worker at time of writing.
 	// https://docs.google.com/spreadsheets/d/1mG-5UYGup5qxGdEMWkhP6BWCz053NUb2E1QoUTU16uA/edit#gid=783724593
-	
+
 	// Safari 6 and 6.1 for desktop, iPad, and iPhone are the only browsers that
 	// have WebKitMutationObserver but not un-prefixed MutationObserver.
 	// Must use `global` instead of `window` to work in both frames and web
 	// workers. `global` is a provision of Browserify, Mr, Mrs, or Mop.
 	var BrowserMutationObserver = global.MutationObserver || global.WebKitMutationObserver;
-	
+
 	// MutationObservers are desirable because they have high priority and work
 	// reliably everywhere they are implemented.
 	// They are implemented in all modern browsers.
@@ -619,14 +634,14 @@ module.exports =
 	// - Safari 6-7
 	if (typeof BrowserMutationObserver === "function") {
 	    requestFlush = makeRequestCallFromMutationObserver(flush);
-	
+
 	// MessageChannels are desirable because they give direct access to the HTML
 	// task queue, are implemented in Internet Explorer 10, Safari 5.0-1, and Opera
 	// 11-12, and in web workers in many engines.
 	// Although message channels yield to any queued rendering and IO tasks, they
 	// would be better than imposing the 4ms delay of timers.
 	// However, they do not work reliably in Internet Explorer or Safari.
-	
+
 	// Internet Explorer 10 is the only browser that has setImmediate but does
 	// not have MutationObservers.
 	// Although setImmediate yields to the browser's renderer, it would be
@@ -636,7 +651,7 @@ module.exports =
 	// Desktop to a lesser extent) that renders both setImmediate and
 	// MessageChannel useless for the purposes of ASAP.
 	// https://github.com/kriskowal/q/issues/396
-	
+
 	// Timers are implemented universally.
 	// We fall back to timers in workers in most engines, and in foreground
 	// contexts in the following browsers.
@@ -650,14 +665,14 @@ module.exports =
 	} else {
 	    requestFlush = makeRequestCallFromTimer(flush);
 	}
-	
+
 	// `requestFlush` requests that the high priority event queue be flushed as
 	// soon as possible.
 	// This is useful to prevent an error thrown in a task from stalling the event
 	// queue if the exception handled by Node.js’s
 	// `process.on("uncaughtException")` or by a domain.
 	rawAsap.requestFlush = requestFlush;
-	
+
 	// To request a high priority event, we induce a mutation observer by toggling
 	// the text of a text node between "1" and "-1".
 	function makeRequestCallFromMutationObserver(callback) {
@@ -670,15 +685,15 @@ module.exports =
 	        node.data = toggle;
 	    };
 	}
-	
+
 	// The message channel technique was discovered by Malte Ubl and was the
 	// original foundation for this library.
 	// http://www.nonblocking.io/2011/06/windownexttick.html
-	
+
 	// Safari 6.0.5 (at least) intermittently fails to create message ports on a
 	// page's first load. Thankfully, this version of Safari supports
 	// MutationObservers, so we don't need to fall back in that case.
-	
+
 	// function makeRequestCallFromMessageChannel(callback) {
 	//     var channel = new MessageChannel();
 	//     channel.port1.onmessage = callback;
@@ -686,7 +701,7 @@ module.exports =
 	//         channel.port2.postMessage(0);
 	//     };
 	// }
-	
+
 	// For reasons explained above, we are also unable to use `setImmediate`
 	// under any circumstances.
 	// Even if we were, there is another bug in Internet Explorer 10.
@@ -694,23 +709,23 @@ module.exports =
 	// `setImmediate` must be called *by name* and therefore must be wrapped in a
 	// closure.
 	// Never forget.
-	
+
 	// function makeRequestCallFromSetImmediate(callback) {
 	//     return function requestCall() {
 	//         setImmediate(callback);
 	//     };
 	// }
-	
+
 	// Safari 6.0 has a problem where timers will get lost while the user is
 	// scrolling. This problem does not impact ASAP because Safari 6.0 supports
 	// mutation observers, so that implementation is used instead.
 	// However, if we ever elect to use timers in Safari, the prevalent work-around
 	// is to add a scroll event listener that calls for a flush.
-	
+
 	// `setTimeout` does not call the passed callback if the delay is less than
 	// approximately 7 in web workers in Firefox 8 through 18, and sometimes not
 	// even then.
-	
+
 	function makeRequestCallFromTimer(callback) {
 	    return function requestCall() {
 	        // We dispatch a timeout with a specified delay of 0 for engines that
@@ -722,7 +737,7 @@ module.exports =
 	        // workers, we enlist an interval handle that will try to fire
 	        // an event 20 times per second until it succeeds.
 	        var intervalHandle = setInterval(handleTimer, 50);
-	
+
 	        function handleTimer() {
 	            // Whichever timer succeeds will cancel both timers and
 	            // execute the callback.
@@ -732,19 +747,19 @@ module.exports =
 	        }
 	    };
 	}
-	
+
 	// This is for `asap.js` only.
 	// Its name will be periodically randomized to break any code that depends on
 	// its existence.
 	rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
-	
+
 	// ASAP was originally a nextTick shim included in Q. This was factored out
 	// into this ASAP package. It was later adapted to RSVP which made further
 	// amendments. These decisions, particularly to marginalize MessageChannel and
 	// to capture the MutationObserver implementation in a closure, were integrated
 	// back into ASAP proper.
 	// https://github.com/tildeio/rsvp.js/blob/cddf7232546a9cf858524b75cde6f9edf72620a7/lib/rsvp/asap.js
-	
+
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
@@ -752,9 +767,9 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	var Promise = __webpack_require__(5);
-	
+
 	module.exports = Promise;
 	Promise.prototype.done = function (onFulfilled, onRejected) {
 	  var self = arguments.length ? this.then.apply(this, arguments) : this;
@@ -771,9 +786,9 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	var Promise = __webpack_require__(5);
-	
+
 	module.exports = Promise;
 	Promise.prototype['finally'] = function (f) {
 	  return this.then(function (value) {
@@ -793,22 +808,22 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	//This file contains the ES6 extensions to the core Promises/A+ API
-	
+
 	var Promise = __webpack_require__(5);
-	
+
 	module.exports = Promise;
-	
+
 	/* Static Functions */
-	
+
 	var TRUE = valuePromise(true);
 	var FALSE = valuePromise(false);
 	var NULL = valuePromise(null);
 	var UNDEFINED = valuePromise(undefined);
 	var ZERO = valuePromise(0);
 	var EMPTYSTRING = valuePromise('');
-	
+
 	function valuePromise(value) {
 	  var p = new Promise(Promise._99);
 	  p._37 = 1;
@@ -817,14 +832,14 @@ module.exports =
 	}
 	Promise.resolve = function (value) {
 	  if (value instanceof Promise) return value;
-	
+
 	  if (value === null) return NULL;
 	  if (value === undefined) return UNDEFINED;
 	  if (value === true) return TRUE;
 	  if (value === false) return FALSE;
 	  if (value === 0) return ZERO;
 	  if (value === '') return EMPTYSTRING;
-	
+
 	  if (typeof value === 'object' || typeof value === 'function') {
 	    try {
 	      var then = value.then;
@@ -839,10 +854,10 @@ module.exports =
 	  }
 	  return valuePromise(value);
 	};
-	
+
 	Promise.all = function (arr) {
 	  var args = Array.prototype.slice.call(arr);
-	
+
 	  return new Promise(function (resolve, reject) {
 	    if (args.length === 0) return resolve([]);
 	    var remaining = args.length;
@@ -879,13 +894,13 @@ module.exports =
 	    }
 	  });
 	};
-	
+
 	Promise.reject = function (value) {
 	  return new Promise(function (resolve, reject) {
 	    reject(value);
 	  });
 	};
-	
+
 	Promise.race = function (values) {
 	  return new Promise(function (resolve, reject) {
 	    values.forEach(function(value){
@@ -893,9 +908,9 @@ module.exports =
 	    });
 	  });
 	};
-	
+
 	/* Prototype Methods */
-	
+
 	Promise.prototype['catch'] = function (onRejected) {
 	  return this.then(null, onRejected);
 	};
@@ -906,17 +921,17 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
-	
+
 	// This file contains then/promise specific extensions that are only useful
 	// for node.js interop
-	
+
 	var Promise = __webpack_require__(5);
 	var asap = __webpack_require__(11);
-	
+
 	module.exports = Promise;
-	
+
 	/* Static Functions */
-	
+
 	Promise.denodeify = function (fn, argumentCount) {
 	  argumentCount = argumentCount || Infinity;
 	  return function () {
@@ -962,10 +977,10 @@ module.exports =
 	    }
 	  }
 	}
-	
+
 	Promise.prototype.nodeify = function (callback, ctx) {
 	  if (typeof callback != 'function') return this;
-	
+
 	  this.then(function (value) {
 	    asap(function () {
 	      callback.call(ctx, null, value);
@@ -983,7 +998,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
-	
+
 	// rawAsap provides everything we need except exception management.
 	var rawAsap = __webpack_require__(6);
 	// RawTasks are recycled to reduce GC churn.
@@ -992,13 +1007,13 @@ module.exports =
 	// Array-as-queue is good enough here, since we are just dealing with exceptions.
 	var pendingErrors = [];
 	var requestErrorThrow = rawAsap.makeRequestCallFromTimer(throwFirstError);
-	
+
 	function throwFirstError() {
 	    if (pendingErrors.length) {
 	        throw pendingErrors.shift();
 	    }
 	}
-	
+
 	/**
 	 * Calls a task as soon as possible after returning, in its own event, with priority
 	 * over other events like animation, reflow, and repaint. An error thrown from an
@@ -1018,13 +1033,13 @@ module.exports =
 	    rawTask.task = task;
 	    rawAsap(rawTask);
 	}
-	
+
 	// We wrap tasks with recyclable task objects.  A task object implements
 	// `call`, just like a function.
 	function RawTask() {
 	    this.task = null;
 	}
-	
+
 	// The sole purpose of wrapping the task is to catch the exception and recycle
 	// the task object after its single use.
 	RawTask.prototype.call = function () {
@@ -1056,30 +1071,30 @@ module.exports =
 
 	var ModelRoot = __webpack_require__(13);
 	var ModelDataSourceAdapter = __webpack_require__(21);
-	
+
 	var RequestQueue = __webpack_require__(22);
 	var ModelResponse = __webpack_require__(110);
 	var SetResponse = __webpack_require__(114);
 	var CallResponse = __webpack_require__(137);
 	var InvalidateResponse = __webpack_require__(138);
-	
+
 	var ASAPScheduler = __webpack_require__(139);
 	var TimeoutScheduler = __webpack_require__(140);
 	var ImmediateScheduler = __webpack_require__(17);
-	
+
 	var arrayClone = __webpack_require__(132);
 	var arraySlice = __webpack_require__(108);
-	
+
 	var collectLru = __webpack_require__(129);
 	var pathSyntax = __webpack_require__(68);
-	
+
 	var getSize = __webpack_require__(63);
 	var isObject = __webpack_require__(16);
 	var isFunction = __webpack_require__(14);
 	var isPrimitive = __webpack_require__(55);
 	var isJSONEnvelope = __webpack_require__(134);
 	var isJSONGraphEnvelope = __webpack_require__(135);
-	
+
 	var setCache = __webpack_require__(141);
 	var setJSONGraphs = __webpack_require__(37);
 	var jsong = __webpack_require__(67);
@@ -1095,9 +1110,9 @@ module.exports =
 	    jsonGraph: true
 	};
 	var GET_VALID_INPUT = __webpack_require__(145);
-	
+
 	module.exports = Model;
-	
+
 	Model.ref = jsong.ref;
 	Model.atom = jsong.atom;
 	Model.error = jsong.error;
@@ -1106,14 +1121,14 @@ module.exports =
 	 * This callback is invoked when the Model's cache is changed.
 	 * @callback Model~onChange
 	 */
-	
+
 	 /**
 	 * This function is invoked on every JSONGraph Error retrieved from the DataSource. This function allows Error objects to be transformed before being stored in the Model's cache.
 	 * @callback Model~errorSelector
 	 * @param {Object} jsonGraphError - the JSONGraph Error object to transform before it is stored in the Model's cache.
 	 * @returns {Object} the JSONGraph Error object to store in the Model cache.
 	 */
-	
+
 	 /**
 	 * This function is invoked every time a value in the Model cache is about to be replaced with a new value. If the function returns true, the existing value is replaced with a new value and the version flag on all of the value's ancestors in the tree are incremented.
 	 * @callback Model~comparator
@@ -1121,7 +1136,7 @@ module.exports =
 	 * @param {Object} newValue - the value about to be set into the Model cache.
 	 * @returns {Boolean} the Boolean value indicating whether the new value and the existing value are equal.
 	 */
-	
+
 	/**
 	 * A Model object is used to execute commands against a {@link JSONGraph} object. {@link Model}s can work with a local JSONGraph cache, or it can work with a remote {@link JSONGraph} object through a {@link DataSource}.
 	 * @constructor
@@ -1135,7 +1150,7 @@ module.exports =
 	 * @param {?Model~comparator} options.comparator - a function called whenever a value in the Model's cache is about to be replaced with a new value.
 	 */
 	function Model(o) {
-	
+
 	    var options = o || {};
 	    this._root = options._root || new ModelRoot(options);
 	    this._path = options.path || options._path || [];
@@ -1143,47 +1158,47 @@ module.exports =
 	    this._source = options.source || options._source;
 	    this._request = options.request || options._request || new RequestQueue(this, this._scheduler);
 	    this._ID = ID++;
-	
+
 	    if (typeof options.maxSize === "number") {
 	        this._maxSize = options.maxSize;
 	    } else {
 	        this._maxSize = options._maxSize || Model.prototype._maxSize;
 	    }
-	
+
 	    if (typeof options.collectRatio === "number") {
 	        this._collectRatio = options.collectRatio;
 	    } else {
 	        this._collectRatio = options._collectRatio || Model.prototype._collectRatio;
 	    }
-	
+
 	    if (options.boxed || options.hasOwnProperty("_boxed")) {
 	        this._boxed = options.boxed || options._boxed;
 	    }
-	
+
 	    if (options.materialized || options.hasOwnProperty("_materialized")) {
 	        this._materialized = options.materialized || options._materialized;
 	    }
-	
+
 	    if (typeof options.treatErrorsAsValues === "boolean") {
 	        this._treatErrorsAsValues = options.treatErrorsAsValues;
 	    } else if (options.hasOwnProperty("_treatErrorsAsValues")) {
 	        this._treatErrorsAsValues = options._treatErrorsAsValues;
 	    }
-	
+
 	    if (options.cache) {
 	        this.setCache(options.cache);
 	    }
 	}
-	
+
 	Model.prototype.constructor = Model;
-	
+
 	Model.prototype._materialized = false;
 	Model.prototype._boxed = false;
 	Model.prototype._progressive = false;
 	Model.prototype._treatErrorsAsValues = false;
 	Model.prototype._maxSize = Math.pow(2, 53) - 1;
 	Model.prototype._collectRatio = 0.75;
-	
+
 	/**
 	 * The get method retrieves several {@link Path}s or {@link PathSet}s from a {@link Model}. The get method loads each value into a JSON object and returns in a ModelResponse.
 	 * @function
@@ -1191,7 +1206,7 @@ module.exports =
 	 * @return {ModelResponse.<JSONEnvelope>} - the requested data as JSON
 	 */
 	Model.prototype.get = __webpack_require__(146);
-	
+
 	/**
 	 * The get method retrieves several {@link Path}s or {@link PathSet}s from a {@link Model}. The get method loads each value into a JSON object and returns in a ModelResponse.
 	 * @function
@@ -1200,7 +1215,7 @@ module.exports =
 	 * @return {ModelResponse.<JSONEnvelope>} - the requested data as JSON
 	 */
 	Model.prototype._getWithPaths = __webpack_require__(147);
-	
+
 	/**
 	 * Sets the value at one or more places in the JSONGraph model. The set method accepts one or more {@link PathValue}s, each of which is a combination of a location in the document and the value to place there.  In addition to accepting  {@link PathValue}s, the set method also returns the values after the set operation is complete.
 	 * @function
@@ -1215,7 +1230,7 @@ module.exports =
 	    }
 	    return this._set.apply(this, arguments);
 	};
-	
+
 	/**
 	 * The preload method retrieves several {@link Path}s or {@link PathSet}s from a {@link Model} and loads them into the Model cache.
 	 * @function
@@ -1240,7 +1255,7 @@ module.exports =
 	        });
 	    });
 	};
-	
+
 	Model.prototype._set = function _set() {
 	    var args;
 	    var argsIdx = -1;
@@ -1257,7 +1272,7 @@ module.exports =
 	    }
 	    return SetResponse.create(this, args, selector);
 	};
-	
+
 	/**
 	 * Invokes a function in the JSON Graph.
 	 * @function
@@ -1286,10 +1301,10 @@ module.exports =
 	            /* eslint-enable no-loop-func */
 	        }
 	    }
-	
+
 	    return CallResponse.create(this, args);
 	};
-	
+
 	/**
 	 * The invalidate method synchronously removes several {@link Path}s or {@link PathSet}s from a {@link Model} cache.
 	 * @function
@@ -1307,7 +1322,7 @@ module.exports =
 	            throw new Error("Invalid argument");
 	        }
 	    }
-	
+
 	    // creates the obs, subscribes and will throw the errors if encountered.
 	    InvalidateResponse.
 	        create(this, args, selector).
@@ -1315,7 +1330,7 @@ module.exports =
 	            throw e;
 	        });
 	};
-	
+
 	/**
 	 * Returns a new {@link Model} bound to a location within the {@link JSONGraph}. The bound location is never a {@link Reference}: any {@link Reference}s encountered while resolving the bound {@link Path} are always replaced with the {@link Reference}s target value. For subsequent operations on the {@link Model}, all paths will be evaluated relative to the bound path. Deref allows you to:
 	 * - Expose only a fragment of the {@link JSONGraph} to components, rather than the entire graph
@@ -1342,28 +1357,28 @@ module.exports =
 	model.deref(["users", 0], "name").subscribe(function(userModel){
 	  console.log(userModel.getPath());
 	});
-	
+
 	// prints ["usersById", 32] because userModel refers to target of reference at ["users", 0]
 	 */
 	Model.prototype.deref = __webpack_require__(148);
-	
+
 	/**
 	 * Get data for a single {@link Path}.
 	 * @param {Path} path - the path to retrieve
 	 * @return {Observable.<*>} - the value for the path
 	 * @example
 	 var model = new falcor.Model({source: new falcor.HttpDataSource("/model.json") });
-	
+
 	 model.
 	     getValue('user.name').
 	     subscribe(function(name) {
 	         console.log(name);
 	     });
-	
+
 	 // The code above prints "Jim" to the console.
 	 */
 	Model.prototype.getValue = __webpack_require__(149);
-	
+
 	/**
 	 * Set value for a single {@link Path}.
 	 * @param {Path} path - the path to set
@@ -1371,17 +1386,17 @@ module.exports =
 	 * @return {Observable.<*>} - the value for the path
 	 * @example
 	 var model = new falcor.Model({source: new falcor.HttpDataSource("/model.json") });
-	
+
 	 model.
 	     setValue('user.name', 'Jim').
 	     subscribe(function(name) {
 	         console.log(name);
 	     });
-	
+
 	 // The code above prints "Jim" to the console.
 	 */
 	Model.prototype.setValue = __webpack_require__(150);
-	
+
 	// TODO: Does not throw if given a PathSet rather than a Path, not sure if it should or not.
 	// TODO: Doc not accurate? I was able to invoke directly against the Model, perhaps because I don't have a data source?
 	// TODO: Not clear on what it means to "retrieve objects in addition to JSONGraph values"
@@ -1393,11 +1408,11 @@ module.exports =
 	 * @return {*} - the value for the specified path
 	 */
 	Model.prototype._getValueSync = __webpack_require__(151);
-	
+
 	Model.prototype._setValueSync = __webpack_require__(152);
-	
+
 	Model.prototype._derefSync = __webpack_require__(153);
-	
+
 	/**
 	 * Set the local cache to a {@link JSONGraph} fragment. This method can be a useful way of mocking a remote document, or restoring the local cache from a previously stored state.
 	 * @param {JSONGraph} jsonGraph - the {@link JSONGraph} fragment to use as the local cache
@@ -1425,7 +1440,7 @@ module.exports =
 	    }
 	    return this;
 	};
-	
+
 	/**
 	 * Get the local {@link JSONGraph} cache. This method can be a useful to store the state of the cache.
 	 * @param {...Array.<PathSet>} [pathSets] - The path(s) to retrieve. If no paths are specified, the entire {@link JSONGraph} is returned.
@@ -1439,14 +1454,14 @@ module.exports =
 	    if (paths.length === 0) {
 	        return getCache(this._root.cache);
 	    }
-	
+
 	    var result = [{}];
 	    var path = this._path;
 	    get.getWithPathsAsJSONGraph(this, paths, result);
 	    this._path = path;
 	    return result[0].jsonGraph;
 	};
-	
+
 	/**
 	 * Retrieves a number which is incremented every single time a value is changed underneath the Model or the object at an optionally-provided Path beneath the Model.
 	 * @param {Path?} path - a path at which to retrieve the version number
@@ -1462,14 +1477,14 @@ module.exports =
 	    }
 	    return this._getVersion(this, path);
 	};
-	
+
 	Model.prototype._syncCheck = function syncCheck(name) {
 	    if (Boolean(this._source) && this._root.syncRefCount <= 0 && this._root.unsafeMode === false) {
 	        throw new Error("Model#" + name + " may only be called within the context of a request selector.");
 	    }
 	    return true;
 	};
-	
+
 	/* eslint-disable guard-for-in */
 	Model.prototype._clone = function cloneModel(opts) {
 	    var clone = new Model(this);
@@ -1485,7 +1500,7 @@ module.exports =
 	    return clone;
 	};
 	/* eslint-enable */
-	
+
 	/**
 	 * Returns a clone of the {@link Model} that enables batching. Within the configured time period, paths for get operations are collected and sent to the {@link DataSource} in a batch. Batching can be more efficient if the {@link DataSource} access the network, potentially reducing the number of HTTP requests to the server.
 	 * @param {?Scheduler|number} schedulerOrDelay - Either a {@link Scheduler} that determines when to send a batch to the {@link DataSource}, or the number in milliseconds to collect a batch before sending to the {@link DataSource}. If this parameter is omitted, then batch collection ends at the end of the next tick.
@@ -1500,10 +1515,10 @@ module.exports =
 	    }
 	    var clone = this._clone();
 	    clone._request = new RequestQueue(clone, schedulerOrDelay);
-	
+
 	    return clone;
 	};
-	
+
 	/**
 	 * Returns a clone of the {@link Model} that disables batching. This is the default mode. Each get operation will be executed on the {@link DataSource} separately.
 	 * @name unbatch
@@ -1516,7 +1531,7 @@ module.exports =
 	    clone._request = new RequestQueue(clone, new ImmediateScheduler());
 	    return clone;
 	};
-	
+
 	/**
 	 * Returns a clone of the {@link Model} that treats errors as values. Errors will be reported in the same callback used to report data. Errors will appear as objects in responses, rather than being sent to the {@link Observable~onErrorCallback} callback of the {@link ModelResponse}.
 	 * @return {Model}
@@ -1526,7 +1541,7 @@ module.exports =
 	        _treatErrorsAsValues: true
 	    });
 	};
-	
+
 	/**
 	 * Adapts a Model to the {@link DataSource} interface.
 	 * @return {DataSource}
@@ -1541,7 +1556,7 @@ module.exports =
 	        }
 	    }),
 	    proxyModel = new falcor.Model({ source: model.asDataSource() });
-	
+
 	// Prints "Steve"
 	proxyModel.getValue("user.name").
 	    then(function(name) {
@@ -1551,19 +1566,19 @@ module.exports =
 	Model.prototype.asDataSource = function asDataSource() {
 	    return new ModelDataSourceAdapter(this);
 	};
-	
+
 	Model.prototype._materialize = function materialize() {
 	    return this._clone({
 	        _materialized: true
 	    });
 	};
-	
+
 	Model.prototype._dematerialize = function dematerialize() {
 	    return this._clone({
 	        _materialized: "delete"
 	    });
 	};
-	
+
 	/**
 	 * Returns a clone of the {@link Model} that boxes values returning the wrapper ({@link Atom}, {@link Reference}, or {@link Error}), rather than the value inside it. This allows any metadata attached to the wrapper to be inspected.
 	 * @return {Model}
@@ -1573,7 +1588,7 @@ module.exports =
 	        _boxed: true
 	    });
 	};
-	
+
 	/**
 	 * Returns a clone of the {@link Model} that unboxes values, returning the value inside of the wrapper ({@link Atom}, {@link Reference}, or {@link Error}), rather than the wrapper itself. This is the default mode.
 	 * @return {Model}
@@ -1583,7 +1598,7 @@ module.exports =
 	        _boxed: "delete"
 	    });
 	};
-	
+
 	/**
 	 * Returns a clone of the {@link Model} that only uses the local {@link JSONGraph} and never uses a {@link DataSource} to retrieve missing paths.
 	 * @return {Model}
@@ -1593,14 +1608,14 @@ module.exports =
 	        _source: "delete"
 	    });
 	};
-	
+
 	Model.prototype.toJSON = function toJSON() {
 	    return {
 	        $type: "ref",
 	        value: this._path
 	    };
 	};
-	
+
 	/**
 	 * Returns the {@link Path} to the object within the JSON Graph that this Model references.
 	 * @return {Path}
@@ -1621,37 +1636,37 @@ module.exports =
 	model.deref(["users", 0], "name").subscribe(function(userModel){
 	  console.log(userModel.getPath());
 	});
-	
+
 	// prints ["usersById", 32] because userModel refers to target of reference at ["users", 0]
 	 */
 	Model.prototype.getPath = function getPath() {
 	    return arrayClone(this._path);
 	};
-	
+
 	Model.prototype._getBoundValue = __webpack_require__(92);
 	Model.prototype._getVersion = __webpack_require__(154);
 	Model.prototype._getValueSync = __webpack_require__(93);
-	
+
 	Model.prototype._getPathValuesAsPathMap = get.getWithPathsAsPathMap;
 	Model.prototype._getPathValuesAsJSONG = get.getWithPathsAsJSONGraph;
-	
+
 	Model.prototype._setPathValuesAsJSON = __webpack_require__(91);
 	Model.prototype._setPathValuesAsJSONG = __webpack_require__(91);
 	Model.prototype._setPathValuesAsPathMap = __webpack_require__(91);
 	Model.prototype._setPathValuesAsValues = __webpack_require__(91);
-	
+
 	Model.prototype._setPathMapsAsJSON = __webpack_require__(141);
 	Model.prototype._setPathMapsAsJSONG = __webpack_require__(141);
 	Model.prototype._setPathMapsAsPathMap = __webpack_require__(141);
 	Model.prototype._setPathMapsAsValues = __webpack_require__(141);
-	
+
 	Model.prototype._setJSONGsAsJSON = __webpack_require__(37);
 	Model.prototype._setJSONGsAsJSONG = __webpack_require__(37);
 	Model.prototype._setJSONGsAsPathMap = __webpack_require__(37);
 	Model.prototype._setJSONGsAsValues = __webpack_require__(37);
-	
+
 	Model.prototype._setCache = __webpack_require__(141);
-	
+
 	Model.prototype._invalidatePathValuesAsJSON = __webpack_require__(155);
 	Model.prototype._invalidatePathMapsAsJSON = __webpack_require__(156);
 
@@ -1663,30 +1678,30 @@ module.exports =
 	var isFunction = __webpack_require__(14);
 	var hasOwn = __webpack_require__(15);
 	var ImmediateScheduler = __webpack_require__(17);
-	
+
 	function ModelRoot(o) {
-	
+
 	    var options = o || {};
-	
+
 	    this.syncRefCount = 0;
 	    this.expired = options.expired || [];
 	    this.unsafeMode = options.unsafeMode || false;
 	    this.collectionScheduler = options.collectionScheduler || new ImmediateScheduler();
 	    this.cache = {};
-	
+
 	    if (isFunction(options.comparator)) {
 	        this.comparator = options.comparator;
 	    }
-	
+
 	    if (isFunction(options.errorSelector)) {
 	        this.errorSelector = options.errorSelector;
 	    }
-	
+
 	    if (isFunction(options.onChange)) {
 	        this.onChange = options.onChange;
 	    }
 	}
-	
+
 	ModelRoot.prototype.errorSelector = function errorSelector(x, y) {
 	    return y;
 	};
@@ -1699,7 +1714,7 @@ module.exports =
 	    }
 	    return cacheNode === messageNode;
 	};
-	
+
 	module.exports = ModelRoot;
 
 
@@ -1708,7 +1723,7 @@ module.exports =
 /***/ function(module, exports) {
 
 	var functionTypeof = "function";
-	
+
 	module.exports = function isFunction(func) {
 	    return Boolean(func) && typeof func === functionTypeof;
 	};
@@ -1720,7 +1735,7 @@ module.exports =
 
 	var isObject = __webpack_require__(16);
 	var hasOwn = Object.prototype.hasOwnProperty;
-	
+
 	module.exports = function(obj, prop) {
 	  return isObject(obj) && hasOwn.call(obj, prop);
 	};
@@ -1742,19 +1757,19 @@ module.exports =
 
 	var Rx = __webpack_require__(18);
 	var Disposable = Rx.Disposable;
-	
+
 	function ImmediateScheduler() {}
-	
+
 	ImmediateScheduler.prototype.schedule = function schedule(action) {
 	    action();
 	    return Disposable.empty;
 	};
-	
+
 	ImmediateScheduler.prototype.scheduleWithState = function scheduleWithState(state, action) {
 	    action(this, state);
 	    return Disposable.empty;
 	};
-	
+
 	module.exports = ImmediateScheduler;
 
 
@@ -1763,9 +1778,9 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(module, global, process) {// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-	
+
 	;(function (undefined) {
-	
+
 	  var objectTypes = {
 	    'boolean': false,
 	    'function': true,
@@ -1774,17 +1789,17 @@ module.exports =
 	    'string': false,
 	    'undefined': false
 	  };
-	
+
 	  var root = (objectTypes[typeof window] && window) || this,
 	    freeExports = objectTypes[typeof exports] && exports && !exports.nodeType && exports,
 	    freeModule = objectTypes[typeof module] && module && !module.nodeType && module,
 	    moduleExports = freeModule && freeModule.exports === freeExports && freeExports,
 	    freeGlobal = objectTypes[typeof global] && global;
-	
+
 	  if (freeGlobal && (freeGlobal.global === freeGlobal || freeGlobal.window === freeGlobal)) {
 	    root = freeGlobal;
 	  }
-	
+
 	  var Rx = {
 	      internals: {},
 	      config: {
@@ -1792,7 +1807,7 @@ module.exports =
 	      },
 	      helpers: { }
 	  };
-	
+
 	  // Defaults
 	  var noop = Rx.helpers.noop = function () { },
 	    notDefined = Rx.helpers.notDefined = function (x) { return typeof x === 'undefined'; },
@@ -1808,23 +1823,23 @@ module.exports =
 	    asArray = Rx.helpers.asArray = function () { return Array.prototype.slice.call(arguments); },
 	    not = Rx.helpers.not = function (a) { return !a; },
 	    isFunction = Rx.helpers.isFunction = (function () {
-	
+
 	      var isFn = function (value) {
 	        return typeof value == 'function' || false;
 	      }
-	
+
 	      // fallback for older versions of Chrome and Safari
 	      if (isFn(/x/)) {
 	        isFn = function(value) {
 	          return typeof value == 'function' && toString.call(value) == '[object Function]';
 	        };
 	      }
-	
+
 	      return isFn;
 	    }());
-	
+
 	  function cloneArray(arr) { for(var a = [], i = 0, len = arr.length; i < len; i++) { a.push(arr[i]); } return a;}
-	
+
 	  Rx.config.longStackSupport = false;
 	  var hasStacks = false;
 	  try {
@@ -1832,12 +1847,12 @@ module.exports =
 	  } catch (e) {
 	    hasStacks = !!e.stack;
 	  }
-	
+
 	  // All code after this point will be filtered from stack traces reported by RxJS
 	  var rStartingLine = captureLine(), rFileName;
-	
+
 	  var STACK_JUMP_SEPARATOR = "From previous event:";
-	
+
 	  function makeStackTraceLong(error, observable) {
 	      // If possible, transform the error stack trace by removing Node and RxJS
 	      // cruft, then concatenating with the stack trace of `observable`.
@@ -1855,45 +1870,45 @@ module.exports =
 	          }
 	        }
 	        stacks.unshift(error.stack);
-	
+
 	        var concatedStacks = stacks.join("\n" + STACK_JUMP_SEPARATOR + "\n");
 	        error.stack = filterStackString(concatedStacks);
 	    }
 	  }
-	
+
 	  function filterStackString(stackString) {
 	    var lines = stackString.split("\n"),
 	        desiredLines = [];
 	    for (var i = 0, len = lines.length; i < len; i++) {
 	      var line = lines[i];
-	
+
 	      if (!isInternalFrame(line) && !isNodeFrame(line) && line) {
 	        desiredLines.push(line);
 	      }
 	    }
 	    return desiredLines.join("\n");
 	  }
-	
+
 	  function isInternalFrame(stackLine) {
 	    var fileNameAndLineNumber = getFileNameAndLineNumber(stackLine);
 	    if (!fileNameAndLineNumber) {
 	      return false;
 	    }
 	    var fileName = fileNameAndLineNumber[0], lineNumber = fileNameAndLineNumber[1];
-	
+
 	    return fileName === rFileName &&
 	      lineNumber >= rStartingLine &&
 	      lineNumber <= rEndingLine;
 	  }
-	
+
 	  function isNodeFrame(stackLine) {
 	    return stackLine.indexOf("(module.js:") !== -1 ||
 	      stackLine.indexOf("(node.js:") !== -1;
 	  }
-	
+
 	  function captureLine() {
 	    if (!hasStacks) { return; }
-	
+
 	    try {
 	      throw new Error();
 	    } catch (e) {
@@ -1901,64 +1916,64 @@ module.exports =
 	      var firstLine = lines[0].indexOf("@") > 0 ? lines[1] : lines[2];
 	      var fileNameAndLineNumber = getFileNameAndLineNumber(firstLine);
 	      if (!fileNameAndLineNumber) { return; }
-	
+
 	      rFileName = fileNameAndLineNumber[0];
 	      return fileNameAndLineNumber[1];
 	    }
 	  }
-	
+
 	  function getFileNameAndLineNumber(stackLine) {
 	    // Named functions: "at functionName (filename:lineNumber:columnNumber)"
 	    var attempt1 = /at .+ \((.+):(\d+):(?:\d+)\)$/.exec(stackLine);
 	    if (attempt1) { return [attempt1[1], Number(attempt1[2])]; }
-	
+
 	    // Anonymous functions: "at filename:lineNumber:columnNumber"
 	    var attempt2 = /at ([^ ]+):(\d+):(?:\d+)$/.exec(stackLine);
 	    if (attempt2) { return [attempt2[1], Number(attempt2[2])]; }
-	
+
 	    // Firefox style: "function@filename:lineNumber or @filename:lineNumber"
 	    var attempt3 = /.*@(.+):(\d+)$/.exec(stackLine);
 	    if (attempt3) { return [attempt3[1], Number(attempt3[2])]; }
 	  }
-	
+
 	  var EmptyError = Rx.EmptyError = function() {
 	    this.message = 'Sequence contains no elements.';
 	    Error.call(this);
 	  };
 	  EmptyError.prototype = Error.prototype;
-	
+
 	  var ObjectDisposedError = Rx.ObjectDisposedError = function() {
 	    this.message = 'Object has been disposed';
 	    Error.call(this);
 	  };
 	  ObjectDisposedError.prototype = Error.prototype;
-	
+
 	  var ArgumentOutOfRangeError = Rx.ArgumentOutOfRangeError = function () {
 	    this.message = 'Argument out of range';
 	    Error.call(this);
 	  };
 	  ArgumentOutOfRangeError.prototype = Error.prototype;
-	
+
 	  var NotSupportedError = Rx.NotSupportedError = function (message) {
 	    this.message = message || 'This operation is not supported';
 	    Error.call(this);
 	  };
 	  NotSupportedError.prototype = Error.prototype;
-	
+
 	  var NotImplementedError = Rx.NotImplementedError = function (message) {
 	    this.message = message || 'This operation is not implemented';
 	    Error.call(this);
 	  };
 	  NotImplementedError.prototype = Error.prototype;
-	
+
 	  var notImplemented = Rx.helpers.notImplemented = function () {
 	    throw new NotImplementedError();
 	  };
-	
+
 	  var notSupported = Rx.helpers.notSupported = function () {
 	    throw new NotSupportedError();
 	  };
-	
+
 	  // Shim in iterator support
 	  var $iterator$ = (typeof Symbol === 'function' && Symbol.iterator) ||
 	    '_es6shim_iterator_';
@@ -1966,19 +1981,19 @@ module.exports =
 	  if (root.Set && typeof new root.Set()['@@iterator'] === 'function') {
 	    $iterator$ = '@@iterator';
 	  }
-	
+
 	  var doneEnumerator = Rx.doneEnumerator = { done: true, value: undefined };
-	
+
 	  var isIterable = Rx.helpers.isIterable = function (o) {
 	    return o[$iterator$] !== undefined;
 	  }
-	
+
 	  var isArrayLike = Rx.helpers.isArrayLike = function (o) {
 	    return o && o.length !== undefined;
 	  }
-	
+
 	  Rx.helpers.iterator = $iterator$;
-	
+
 	  var bindCallback = Rx.internals.bindCallback = function (func, thisArg, argCount) {
 	    if (typeof thisArg === 'undefined') { return func; }
 	    switch(argCount) {
@@ -1999,12 +2014,12 @@ module.exports =
 	          return func.call(thisArg, value, index, collection);
 	        };
 	    }
-	
+
 	    return function() {
 	      return func.apply(thisArg, arguments);
 	    };
 	  };
-	
+
 	  /** Used to determine if values are of the language type Object */
 	  var dontEnums = ['toString',
 	    'toLocaleString',
@@ -2014,7 +2029,7 @@ module.exports =
 	    'propertyIsEnumerable',
 	    'constructor'],
 	  dontEnumsLength = dontEnums.length;
-	
+
 	  /** `Object#toString` result shortcuts */
 	  var argsClass = '[object Arguments]',
 	    arrayClass = '[object Array]',
@@ -2026,7 +2041,7 @@ module.exports =
 	    objectClass = '[object Object]',
 	    regexpClass = '[object RegExp]',
 	    stringClass = '[object String]';
-	
+
 	  var toString = Object.prototype.toString,
 	    hasOwnProperty = Object.prototype.hasOwnProperty,
 	    supportsArgsClass = toString.call(arguments) == argsClass, // For less <IE9 && FF<4
@@ -2035,46 +2050,46 @@ module.exports =
 	    objectProto = Object.prototype,
 	    stringProto = String.prototype,
 	    propertyIsEnumerable = objectProto.propertyIsEnumerable;
-	
+
 	  try {
 	    supportNodeClass = !(toString.call(document) == objectClass && !({ 'toString': 0 } + ''));
 	  } catch (e) {
 	    supportNodeClass = true;
 	  }
-	
+
 	  var nonEnumProps = {};
 	  nonEnumProps[arrayClass] = nonEnumProps[dateClass] = nonEnumProps[numberClass] = { 'constructor': true, 'toLocaleString': true, 'toString': true, 'valueOf': true };
 	  nonEnumProps[boolClass] = nonEnumProps[stringClass] = { 'constructor': true, 'toString': true, 'valueOf': true };
 	  nonEnumProps[errorClass] = nonEnumProps[funcClass] = nonEnumProps[regexpClass] = { 'constructor': true, 'toString': true };
 	  nonEnumProps[objectClass] = { 'constructor': true };
-	
+
 	  var support = {};
 	  (function () {
 	    var ctor = function() { this.x = 1; },
 	      props = [];
-	
+
 	    ctor.prototype = { 'valueOf': 1, 'y': 1 };
 	    for (var key in new ctor) { props.push(key); }
 	    for (key in arguments) { }
-	
+
 	    // Detect if `name` or `message` properties of `Error.prototype` are enumerable by default.
 	    support.enumErrorProps = propertyIsEnumerable.call(errorProto, 'message') || propertyIsEnumerable.call(errorProto, 'name');
-	
+
 	    // Detect if `prototype` properties are enumerable by default.
 	    support.enumPrototypes = propertyIsEnumerable.call(ctor, 'prototype');
-	
+
 	    // Detect if `arguments` object indexes are non-enumerable
 	    support.nonEnumArgs = key != 0;
-	
+
 	    // Detect if properties shadowing those on `Object.prototype` are non-enumerable.
 	    support.nonEnumShadows = !/valueOf/.test(props);
 	  }(1));
-	
+
 	  var isObject = Rx.internals.isObject = function(value) {
 	    var type = typeof value;
 	    return value && (type == 'function' || type == 'object') || false;
 	  };
-	
+
 	  function keysIn(object) {
 	    var result = [];
 	    if (!isObject(object)) {
@@ -2085,19 +2100,19 @@ module.exports =
 	    }
 	    var skipProto = support.enumPrototypes && typeof object == 'function',
 	        skipErrorProps = support.enumErrorProps && (object === errorProto || object instanceof Error);
-	
+
 	    for (var key in object) {
 	      if (!(skipProto && key == 'prototype') &&
 	          !(skipErrorProps && (key == 'message' || key == 'name'))) {
 	        result.push(key);
 	      }
 	    }
-	
+
 	    if (support.nonEnumShadows && object !== objectProto) {
 	      var ctor = object.constructor,
 	          index = -1,
 	          length = dontEnumsLength;
-	
+
 	      if (object === (ctor && ctor.prototype)) {
 	        var className = object === stringProto ? stringClass : object === errorProto ? errorClass : toString.call(object),
 	            nonEnum = nonEnumProps[className];
@@ -2111,12 +2126,12 @@ module.exports =
 	    }
 	    return result;
 	  }
-	
+
 	  function internalFor(object, callback, keysFunc) {
 	    var index = -1,
 	      props = keysFunc(object),
 	      length = props.length;
-	
+
 	    while (++index < length) {
 	      var key = props[index];
 	      if (callback(object[key], key, object) === false) {
@@ -2125,32 +2140,32 @@ module.exports =
 	    }
 	    return object;
 	  }
-	
+
 	  function internalForIn(object, callback) {
 	    return internalFor(object, callback, keysIn);
 	  }
-	
+
 	  function isNode(value) {
 	    // IE < 9 presents DOM nodes as `Object` objects except they have `toString`
 	    // methods that are `typeof` "string" and still can coerce nodes to strings
 	    return typeof value.toString != 'function' && typeof (value + '') == 'string';
 	  }
-	
+
 	  var isArguments = function(value) {
 	    return (value && typeof value == 'object') ? toString.call(value) == argsClass : false;
 	  }
-	
+
 	  // fallback for browsers that can't detect `arguments` objects by [[Class]]
 	  if (!supportsArgsClass) {
 	    isArguments = function(value) {
 	      return (value && typeof value == 'object') ? hasOwnProperty.call(value, 'callee') : false;
 	    };
 	  }
-	
+
 	  var isEqual = Rx.internals.isEqual = function (x, y) {
 	    return deepEquals(x, y, [], []);
 	  };
-	
+
 	  /** @private
 	   * Used for deep comparison
 	   **/
@@ -2160,20 +2175,20 @@ module.exports =
 	      // treat `+0` vs. `-0` as not equal
 	      return a !== 0 || (1 / a == 1 / b);
 	    }
-	
+
 	    var type = typeof a,
 	        otherType = typeof b;
-	
+
 	    // exit early for unlike primitive values
 	    if (a === a && (a == null || b == null ||
 	        (type != 'function' && type != 'object' && otherType != 'function' && otherType != 'object'))) {
 	      return false;
 	    }
-	
+
 	    // compare [[Class]] names
 	    var className = toString.call(a),
 	        otherClass = toString.call(b);
-	
+
 	    if (className == argsClass) {
 	      className = objectClass;
 	    }
@@ -2189,14 +2204,14 @@ module.exports =
 	        // coerce dates and booleans to numbers, dates to milliseconds and booleans
 	        // to `1` or `0` treating invalid dates coerced to `NaN` as not equal
 	        return +a == +b;
-	
+
 	      case numberClass:
 	        // treat `NaN` vs. `NaN` as equal
 	        return (a != +a) ?
 	          b != +b :
 	          // but treat `-0` vs. `+0` as not equal
 	          (a == 0 ? (1 / a == 1 / b) : a == +b);
-	
+
 	      case regexpClass:
 	      case stringClass:
 	        // coerce regexes to strings (http://es5.github.io/#x15.10.6.4)
@@ -2205,7 +2220,7 @@ module.exports =
 	    }
 	    var isArr = className == arrayClass;
 	    if (!isArr) {
-	
+
 	      // exit for functions and DOM nodes
 	      if (className != objectClass || (!support.nodeClass && (isNode(a) || isNode(b)))) {
 	        return false;
@@ -2213,7 +2228,7 @@ module.exports =
 	      // in older versions of Opera, `arguments` objects have `Array` constructors
 	      var ctorA = !support.argsObject && isArguments(a) ? Object : a.constructor,
 	          ctorB = !support.argsObject && isArguments(b) ? Object : b.constructor;
-	
+
 	      // non `Object` object instances with different constructors are not equal
 	      if (ctorA != ctorB &&
 	            !(hasOwnProperty.call(a, 'constructor') && hasOwnProperty.call(b, 'constructor')) &&
@@ -2229,7 +2244,7 @@ module.exports =
 	    var initedStack = !stackA;
 	    stackA || (stackA = []);
 	    stackB || (stackB = []);
-	
+
 	    var length = stackA.length;
 	    while (length--) {
 	      if (stackA[length] == a) {
@@ -2238,24 +2253,24 @@ module.exports =
 	    }
 	    var size = 0;
 	    var result = true;
-	
+
 	    // add `a` and `b` to the stack of traversed objects
 	    stackA.push(a);
 	    stackB.push(b);
-	
+
 	    // recursively compare objects and arrays (susceptible to call stack limits)
 	    if (isArr) {
 	      // compare lengths to determine if a deep comparison is necessary
 	      length = a.length;
 	      size = b.length;
 	      result = size == length;
-	
+
 	      if (result) {
 	        // deep compare the contents, ignoring non-numeric properties
 	        while (size--) {
 	          var index = length,
 	              value = b[size];
-	
+
 	          if (!(result = deepEquals(a[size], value, stackA, stackB))) {
 	            break;
 	          }
@@ -2273,7 +2288,7 @@ module.exports =
 	          return (result = hasOwnProperty.call(a, key) && deepEquals(a[key], value, stackA, stackB));
 	        }
 	      });
-	
+
 	      if (result) {
 	        // ensure both objects have the same number of properties
 	        internalForIn(a, function(value, key, a) {
@@ -2286,19 +2301,19 @@ module.exports =
 	    }
 	    stackA.pop();
 	    stackB.pop();
-	
+
 	    return result;
 	  }
-	
+
 	  var hasProp = {}.hasOwnProperty,
 	      slice = Array.prototype.slice;
-	
+
 	  var inherits = this.inherits = Rx.internals.inherits = function (child, parent) {
 	    function __() { this.constructor = child; }
 	    __.prototype = parent.prototype;
 	    child.prototype = new __();
 	  };
-	
+
 	  var addProperties = Rx.internals.addProperties = function (obj) {
 	    for(var sources = [], i = 1, len = arguments.length; i < len; i++) { sources.push(arguments[i]); }
 	    for (var idx = 0, ln = sources.length; idx < ln; idx++) {
@@ -2308,14 +2323,14 @@ module.exports =
 	      }
 	    }
 	  };
-	
+
 	  // Rx Utils
 	  var addRef = Rx.internals.addRef = function (xs, r) {
 	    return new AnonymousObservable(function (observer) {
 	      return new CompositeDisposable(r.getDisposable(), xs.subscribe(observer));
 	    });
 	  };
-	
+
 	  function arrayInitialize(count, factory) {
 	    var a = new Array(count);
 	    for (var i = 0; i < count; i++) {
@@ -2323,7 +2338,7 @@ module.exports =
 	    }
 	    return a;
 	  }
-	
+
 	  var errorObj = {e: {}};
 	  var tryCatchTarget;
 	  function tryCatcher() {
@@ -2342,30 +2357,30 @@ module.exports =
 	  function thrower(e) {
 	    throw e;
 	  }
-	
+
 	  // Collections
 	  function IndexedItem(id, value) {
 	    this.id = id;
 	    this.value = value;
 	  }
-	
+
 	  IndexedItem.prototype.compareTo = function (other) {
 	    var c = this.value.compareTo(other.value);
 	    c === 0 && (c = this.id - other.id);
 	    return c;
 	  };
-	
+
 	  // Priority Queue for Scheduling
 	  var PriorityQueue = Rx.internals.PriorityQueue = function (capacity) {
 	    this.items = new Array(capacity);
 	    this.length = 0;
 	  };
-	
+
 	  var priorityProto = PriorityQueue.prototype;
 	  priorityProto.isHigherPriority = function (left, right) {
 	    return this.items[left].compareTo(this.items[right]) < 0;
 	  };
-	
+
 	  priorityProto.percolate = function (index) {
 	    if (index >= this.length || index < 0) { return; }
 	    var parent = index - 1 >> 1;
@@ -2377,7 +2392,7 @@ module.exports =
 	      this.percolate(parent);
 	    }
 	  };
-	
+
 	  priorityProto.heapify = function (index) {
 	    +index || (index = 0);
 	    if (index >= this.length || index < 0) { return; }
@@ -2397,27 +2412,27 @@ module.exports =
 	      this.heapify(first);
 	    }
 	  };
-	
+
 	  priorityProto.peek = function () { return this.items[0].value; };
-	
+
 	  priorityProto.removeAt = function (index) {
 	    this.items[index] = this.items[--this.length];
 	    this.items[this.length] = undefined;
 	    this.heapify();
 	  };
-	
+
 	  priorityProto.dequeue = function () {
 	    var result = this.peek();
 	    this.removeAt(0);
 	    return result;
 	  };
-	
+
 	  priorityProto.enqueue = function (item) {
 	    var index = this.length++;
 	    this.items[index] = new IndexedItem(PriorityQueue.count++, item);
 	    this.percolate(index);
 	  };
-	
+
 	  priorityProto.remove = function (item) {
 	    for (var i = 0; i < this.length; i++) {
 	      if (this.items[i].value === item) {
@@ -2428,7 +2443,7 @@ module.exports =
 	    return false;
 	  };
 	  PriorityQueue.count = 0;
-	
+
 	  /**
 	   * Represents a group of disposable resources that are disposed together.
 	   * @constructor
@@ -2450,9 +2465,9 @@ module.exports =
 	    this.isDisposed = false;
 	    this.length = args.length;
 	  };
-	
+
 	  var CompositeDisposablePrototype = CompositeDisposable.prototype;
-	
+
 	  /**
 	   * Adds a disposable to the CompositeDisposable or disposes the disposable if the CompositeDisposable is disposed.
 	   * @param {Mixed} item Disposable to add.
@@ -2465,7 +2480,7 @@ module.exports =
 	      this.length++;
 	    }
 	  };
-	
+
 	  /**
 	   * Removes and disposes the first occurrence of a disposable from the CompositeDisposable.
 	   * @param {Mixed} item Disposable to remove.
@@ -2484,7 +2499,7 @@ module.exports =
 	    }
 	    return shouldDispose;
 	  };
-	
+
 	  /**
 	   *  Disposes all disposables in the group and removes them from the group.
 	   */
@@ -2495,13 +2510,13 @@ module.exports =
 	      for(var i = 0; i < len; i++) { currentDisposables[i] = this.disposables[i]; }
 	      this.disposables = [];
 	      this.length = 0;
-	
+
 	      for (i = 0; i < len; i++) {
 	        currentDisposables[i].dispose();
 	      }
 	    }
 	  };
-	
+
 	  /**
 	   * Provides a set of static methods for creating Disposables.
 	   * @param {Function} dispose Action to run during the first call to dispose. The action is guaranteed to be run at most once.
@@ -2510,7 +2525,7 @@ module.exports =
 	    this.isDisposed = false;
 	    this.action = action || noop;
 	  };
-	
+
 	  /** Performs the task of cleaning up resources. */
 	  Disposable.prototype.dispose = function () {
 	    if (!this.isDisposed) {
@@ -2518,19 +2533,19 @@ module.exports =
 	      this.isDisposed = true;
 	    }
 	  };
-	
+
 	  /**
 	   * Creates a disposable object that invokes the specified action when disposed.
 	   * @param {Function} dispose Action to run during the first call to dispose. The action is guaranteed to be run at most once.
 	   * @return {Disposable} The disposable object that runs the given action upon disposal.
 	   */
 	  var disposableCreate = Disposable.create = function (action) { return new Disposable(action); };
-	
+
 	  /**
 	   * Gets the disposable that does nothing when disposed.
 	   */
 	  var disposableEmpty = Disposable.empty = { dispose: noop };
-	
+
 	  /**
 	   * Validates whether the given object is a disposable
 	   * @param {Object} Object to test whether it has a dispose method
@@ -2539,11 +2554,11 @@ module.exports =
 	  var isDisposable = Disposable.isDisposable = function (d) {
 	    return d && isFunction(d.dispose);
 	  };
-	
+
 	  var checkDisposed = Disposable.checkDisposed = function (disposable) {
 	    if (disposable.isDisposed) { throw new ObjectDisposedError(); }
 	  };
-	
+
 	  // Single assignment
 	  var SingleAssignmentDisposable = Rx.SingleAssignmentDisposable = function () {
 	    this.isDisposed = false;
@@ -2566,7 +2581,7 @@ module.exports =
 	    }
 	    old && old.dispose();
 	  };
-	
+
 	  // Multiple assignment disposable
 	  var SerialDisposable = Rx.SerialDisposable = function () {
 	    this.isDisposed = false;
@@ -2592,18 +2607,18 @@ module.exports =
 	    }
 	    old && old.dispose();
 	  };
-	
+
 	  /**
 	   * Represents a disposable resource that only disposes its underlying disposable resource when all dependent disposable objects have been disposed.
 	   */
 	  var RefCountDisposable = Rx.RefCountDisposable = (function () {
-	
+
 	    function InnerDisposable(disposable) {
 	      this.disposable = disposable;
 	      this.disposable.count++;
 	      this.isInnerDisposed = false;
 	    }
-	
+
 	    InnerDisposable.prototype.dispose = function () {
 	      if (!this.disposable.isDisposed && !this.isInnerDisposed) {
 	        this.isInnerDisposed = true;
@@ -2614,7 +2629,7 @@ module.exports =
 	        }
 	      }
 	    };
-	
+
 	    /**
 	     * Initializes a new instance of the RefCountDisposable with the specified disposable.
 	     * @constructor
@@ -2626,7 +2641,7 @@ module.exports =
 	      this.isPrimaryDisposed = false;
 	      this.count = 0;
 	    }
-	
+
 	    /**
 	     * Disposes the underlying disposable only when all dependent disposables have been disposed
 	     */
@@ -2639,7 +2654,7 @@ module.exports =
 	        }
 	      }
 	    };
-	
+
 	    /**
 	     * Returns a dependent disposable that when disposed decreases the refcount on the underlying disposable.
 	     * @returns {Disposable} A dependent disposable contributing to the reference count that manages the underlying disposable's lifetime.
@@ -2647,27 +2662,27 @@ module.exports =
 	    RefCountDisposable.prototype.getDisposable = function () {
 	      return this.isDisposed ? disposableEmpty : new InnerDisposable(this);
 	    };
-	
+
 	    return RefCountDisposable;
 	  })();
-	
+
 	  function ScheduledDisposable(scheduler, disposable) {
 	    this.scheduler = scheduler;
 	    this.disposable = disposable;
 	    this.isDisposed = false;
 	  }
-	
+
 	  function scheduleItem(s, self) {
 	    if (!self.isDisposed) {
 	      self.isDisposed = true;
 	      self.disposable.dispose();
 	    }
 	  }
-	
+
 	  ScheduledDisposable.prototype.dispose = function () {
 	    this.scheduler.scheduleWithState(this, scheduleItem);
 	  };
-	
+
 	  var ScheduledItem = Rx.internals.ScheduledItem = function (scheduler, state, action, dueTime, comparer) {
 	    this.scheduler = scheduler;
 	    this.state = state;
@@ -2676,45 +2691,45 @@ module.exports =
 	    this.comparer = comparer || defaultSubComparer;
 	    this.disposable = new SingleAssignmentDisposable();
 	  }
-	
+
 	  ScheduledItem.prototype.invoke = function () {
 	    this.disposable.setDisposable(this.invokeCore());
 	  };
-	
+
 	  ScheduledItem.prototype.compareTo = function (other) {
 	    return this.comparer(this.dueTime, other.dueTime);
 	  };
-	
+
 	  ScheduledItem.prototype.isCancelled = function () {
 	    return this.disposable.isDisposed;
 	  };
-	
+
 	  ScheduledItem.prototype.invokeCore = function () {
 	    return this.action(this.scheduler, this.state);
 	  };
-	
+
 	  /** Provides a set of static properties to access commonly used schedulers. */
 	  var Scheduler = Rx.Scheduler = (function () {
-	
+
 	    function Scheduler(now, schedule, scheduleRelative, scheduleAbsolute) {
 	      this.now = now;
 	      this._schedule = schedule;
 	      this._scheduleRelative = scheduleRelative;
 	      this._scheduleAbsolute = scheduleAbsolute;
 	    }
-	
+
 	    /** Determines whether the given object is a scheduler */
 	    Scheduler.isScheduler = function (s) {
 	      return s instanceof Scheduler;
 	    }
-	
+
 	    function invokeAction(scheduler, action) {
 	      action();
 	      return disposableEmpty;
 	    }
-	
+
 	    var schedulerProto = Scheduler.prototype;
-	
+
 	    /**
 	     * Schedules an action to be executed.
 	     * @param {Function} action Action to execute.
@@ -2723,7 +2738,7 @@ module.exports =
 	    schedulerProto.schedule = function (action) {
 	      return this._schedule(action, invokeAction);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed.
 	     * @param state State passed to the action to be executed.
@@ -2733,7 +2748,7 @@ module.exports =
 	    schedulerProto.scheduleWithState = function (state, action) {
 	      return this._schedule(state, action);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed after the specified relative due time.
 	     * @param {Function} action Action to execute.
@@ -2743,7 +2758,7 @@ module.exports =
 	    schedulerProto.scheduleWithRelative = function (dueTime, action) {
 	      return this._scheduleRelative(action, dueTime, invokeAction);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed after dueTime.
 	     * @param state State passed to the action to be executed.
@@ -2754,7 +2769,7 @@ module.exports =
 	    schedulerProto.scheduleWithRelativeAndState = function (state, dueTime, action) {
 	      return this._scheduleRelative(state, dueTime, action);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed at the specified absolute due time.
 	     * @param {Function} action Action to execute.
@@ -2764,7 +2779,7 @@ module.exports =
 	    schedulerProto.scheduleWithAbsolute = function (dueTime, action) {
 	      return this._scheduleAbsolute(action, dueTime, invokeAction);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed at dueTime.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -2775,10 +2790,10 @@ module.exports =
 	    schedulerProto.scheduleWithAbsoluteAndState = function (state, dueTime, action) {
 	      return this._scheduleAbsolute(state, dueTime, action);
 	    };
-	
+
 	    /** Gets the current time according to the local machine's system clock. */
 	    Scheduler.now = defaultNow;
-	
+
 	    /**
 	     * Normalizes the specified TimeSpan value to a positive value.
 	     * @param {Number} timeSpan The time span value to normalize.
@@ -2788,17 +2803,17 @@ module.exports =
 	      timeSpan < 0 && (timeSpan = 0);
 	      return timeSpan;
 	    };
-	
+
 	    return Scheduler;
 	  }());
-	
+
 	  var normalizeTime = Scheduler.normalize, isScheduler = Scheduler.isScheduler;
-	
+
 	  (function (schedulerProto) {
-	
+
 	    function invokeRecImmediate(scheduler, pair) {
 	      var state = pair[0], action = pair[1], group = new CompositeDisposable();
-	
+
 	      function recursiveAction(state1) {
 	        action(state1, function (state2) {
 	          var isAdded = false, isDone = false,
@@ -2820,7 +2835,7 @@ module.exports =
 	      recursiveAction(state);
 	      return group;
 	    }
-	
+
 	    function invokeRecDate(scheduler, pair, method) {
 	      var state = pair[0], action = pair[1], group = new CompositeDisposable();
 	      function recursiveAction(state1) {
@@ -2844,11 +2859,11 @@ module.exports =
 	      recursiveAction(state);
 	      return group;
 	    }
-	
+
 	    function scheduleInnerRecursive(action, self) {
 	      action(function(dt) { self(action, dt); });
 	    }
-	
+
 	    /**
 	     * Schedules an action to be executed recursively.
 	     * @param {Function} action Action to execute recursively. The parameter passed to the action is used to trigger recursive scheduling of the action.
@@ -2857,7 +2872,7 @@ module.exports =
 	    schedulerProto.scheduleRecursive = function (action) {
 	      return this.scheduleRecursiveWithState(action, scheduleInnerRecursive);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -2867,7 +2882,7 @@ module.exports =
 	    schedulerProto.scheduleRecursiveWithState = function (state, action) {
 	      return this.scheduleWithState([state, action], invokeRecImmediate);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively after a specified relative due time.
 	     * @param {Function} action Action to execute recursively. The parameter passed to the action is used to trigger recursive scheduling of the action at the specified relative time.
@@ -2877,7 +2892,7 @@ module.exports =
 	    schedulerProto.scheduleRecursiveWithRelative = function (dueTime, action) {
 	      return this.scheduleRecursiveWithRelativeAndState(action, dueTime, scheduleInnerRecursive);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively after a specified relative due time.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -2890,7 +2905,7 @@ module.exports =
 	        return invokeRecDate(s, p, 'scheduleWithRelativeAndState');
 	      });
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively at a specified absolute due time.
 	     * @param {Function} action Action to execute recursively. The parameter passed to the action is used to trigger recursive scheduling of the action at the specified absolute time.
@@ -2900,7 +2915,7 @@ module.exports =
 	    schedulerProto.scheduleRecursiveWithAbsolute = function (dueTime, action) {
 	      return this.scheduleRecursiveWithAbsoluteAndState(action, dueTime, scheduleInnerRecursive);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively at a specified absolute due time.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -2914,9 +2929,9 @@ module.exports =
 	      });
 	    };
 	  }(Scheduler.prototype));
-	
+
 	  (function (schedulerProto) {
-	
+
 	    /**
 	     * Schedules a periodic piece of work by dynamically discovering the scheduler's capabilities. The periodic task will be scheduled using window.setInterval for the base implementation.
 	     * @param {Number} period Period for running the work periodically.
@@ -2926,7 +2941,7 @@ module.exports =
 	    Scheduler.prototype.schedulePeriodic = function (period, action) {
 	      return this.schedulePeriodicWithState(null, period, action);
 	    };
-	
+
 	    /**
 	     * Schedules a periodic piece of work by dynamically discovering the scheduler's capabilities. The periodic task will be scheduled using window.setInterval for the base implementation.
 	     * @param {Mixed} state Initial state passed to the action upon the first iteration.
@@ -2940,9 +2955,9 @@ module.exports =
 	      var s = state, id = root.setInterval(function () { s = action(s); }, period);
 	      return disposableCreate(function () { root.clearInterval(id); });
 	    };
-	
+
 	  }(Scheduler.prototype));
-	
+
 	  (function (schedulerProto) {
 	    /**
 	     * Returns a scheduler that wraps the original scheduler, adding exception handling for scheduled actions.
@@ -2953,7 +2968,7 @@ module.exports =
 	      return new CatchScheduler(this, handler);
 	    };
 	  }(Scheduler.prototype));
-	
+
 	  var SchedulePeriodicRecursive = Rx.internals.SchedulePeriodicRecursive = (function () {
 	    function tick(command, recurse) {
 	      recurse(0, this._period);
@@ -2964,51 +2979,51 @@ module.exports =
 	        throw e;
 	      }
 	    }
-	
+
 	    function SchedulePeriodicRecursive(scheduler, state, period, action) {
 	      this._scheduler = scheduler;
 	      this._state = state;
 	      this._period = period;
 	      this._action = action;
 	    }
-	
+
 	    SchedulePeriodicRecursive.prototype.start = function () {
 	      var d = new SingleAssignmentDisposable();
 	      this._cancel = d;
 	      d.setDisposable(this._scheduler.scheduleRecursiveWithRelativeAndState(0, this._period, tick.bind(this)));
-	
+
 	      return d;
 	    };
-	
+
 	    return SchedulePeriodicRecursive;
 	  }());
-	
+
 	  /** Gets a scheduler that schedules work immediately on the current thread. */
 	  var immediateScheduler = Scheduler.immediate = (function () {
 	    function scheduleNow(state, action) { return action(this, state); }
 	    return new Scheduler(defaultNow, scheduleNow, notSupported, notSupported);
 	  }());
-	
+
 	  /**
 	   * Gets a scheduler that schedules work as soon as possible on the current thread.
 	   */
 	  var currentThreadScheduler = Scheduler.currentThread = (function () {
 	    var queue;
-	
+
 	    function runTrampoline () {
 	      while (queue.length > 0) {
 	        var item = queue.dequeue();
 	        !item.isCancelled() && item.invoke();
 	      }
 	    }
-	
+
 	    function scheduleNow(state, action) {
 	      var si = new ScheduledItem(this, state, action, this.now());
-	
+
 	      if (!queue) {
 	        queue = new PriorityQueue(4);
 	        queue.enqueue(si);
-	
+
 	        var result = tryCatch(runTrampoline)();
 	        queue = null;
 	        if (result === errorObj) { return thrower(result.e); }
@@ -3017,15 +3032,15 @@ module.exports =
 	      }
 	      return si.disposable;
 	    }
-	
+
 	    var currentScheduler = new Scheduler(defaultNow, scheduleNow, notSupported, notSupported);
 	    currentScheduler.scheduleRequired = function () { return !queue; };
-	
+
 	    return currentScheduler;
 	  }());
-	
+
 	  var scheduleMethod, clearMethod;
-	
+
 	  var localTimer = (function () {
 	    var localSetTimeout, localClearTimeout = noop;
 	    if (!!root.setTimeout) {
@@ -3039,7 +3054,7 @@ module.exports =
 	    } else {
 	      throw new NotSupportedError();
 	    }
-	
+
 	    return {
 	      setTimeout: localSetTimeout,
 	      clearTimeout: localClearTimeout
@@ -3047,15 +3062,15 @@ module.exports =
 	  }());
 	  var localSetTimeout = localTimer.setTimeout,
 	    localClearTimeout = localTimer.clearTimeout;
-	
+
 	  (function () {
-	
+
 	    var nextHandle = 1, tasksByHandle = {}, currentlyRunning = false;
-	
+
 	    clearMethod = function (handle) {
 	      delete tasksByHandle[handle];
 	    };
-	
+
 	    function runTask(handle) {
 	      if (currentlyRunning) {
 	        localSetTimeout(function () { runTask(handle) }, 0);
@@ -3070,16 +3085,16 @@ module.exports =
 	        }
 	      }
 	    }
-	
+
 	    var reNative = RegExp('^' +
 	      String(toString)
 	        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 	        .replace(/toString| for [^\]]+/g, '.*?') + '$'
 	    );
-	
+
 	    var setImmediate = typeof (setImmediate = freeGlobal && moduleExports && freeGlobal.setImmediate) == 'function' &&
 	      !reNative.test(setImmediate) && setImmediate;
-	
+
 	    function postMessageSupported () {
 	      // Ensure not in a worker
 	      if (!root.postMessage || root.importScripts) { return false; }
@@ -3088,17 +3103,17 @@ module.exports =
 	      root.onmessage = function () { isAsync = true; };
 	      root.postMessage('', '*');
 	      root.onmessage = oldHandler;
-	
+
 	      return isAsync;
 	    }
-	
+
 	    // Use in order, setImmediate, nextTick, postMessage, MessageChannel, script readystatechanged, setTimeout
 	    if (isFunction(setImmediate)) {
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
 	        setImmediate(function () { runTask(id); });
-	
+
 	        return id;
 	      };
 	    } else if (typeof process !== 'undefined' && {}.toString.call(process) === '[object process]') {
@@ -3106,19 +3121,19 @@ module.exports =
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
 	        process.nextTick(function () { runTask(id); });
-	
+
 	        return id;
 	      };
 	    } else if (postMessageSupported()) {
 	      var MSG_PREFIX = 'ms.rx.schedule' + Math.random();
-	
+
 	      function onGlobalPostMessage(event) {
 	        // Only if we're a match to avoid any other global events
 	        if (typeof event.data === 'string' && event.data.substring(0, MSG_PREFIX.length) === MSG_PREFIX) {
 	          runTask(event.data.substring(MSG_PREFIX.length));
 	        }
 	      }
-	
+
 	      if (root.addEventListener) {
 	        root.addEventListener('message', onGlobalPostMessage, false);
 	      } else if (root.attachEvent) {
@@ -3126,7 +3141,7 @@ module.exports =
 	      } else {
 	        root.onmessage = onGlobalPostMessage;
 	      }
-	
+
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
@@ -3135,9 +3150,9 @@ module.exports =
 	      };
 	    } else if (!!root.MessageChannel) {
 	      var channel = new root.MessageChannel();
-	
+
 	      channel.port1.onmessage = function (e) { runTask(e.data); };
-	
+
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
@@ -3145,12 +3160,12 @@ module.exports =
 	        return id;
 	      };
 	    } else if ('document' in root && 'onreadystatechange' in root.document.createElement('script')) {
-	
+
 	      scheduleMethod = function (action) {
 	        var scriptElement = root.document.createElement('script');
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
-	
+
 	        scriptElement.onreadystatechange = function () {
 	          runTask(id);
 	          scriptElement.onreadystatechange = null;
@@ -3160,7 +3175,7 @@ module.exports =
 	        root.document.documentElement.appendChild(scriptElement);
 	        return id;
 	      };
-	
+
 	    } else {
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
@@ -3168,17 +3183,17 @@ module.exports =
 	        localSetTimeout(function () {
 	          runTask(id);
 	        }, 0);
-	
+
 	        return id;
 	      };
 	    }
 	  }());
-	
+
 	  /**
 	   * Gets a scheduler that schedules work via a timed callback based upon platform.
 	   */
 	  var timeoutScheduler = Scheduler.timeout = Scheduler['default'] = (function () {
-	
+
 	    function scheduleNow(state, action) {
 	      var scheduler = this, disposable = new SingleAssignmentDisposable();
 	      var id = scheduleMethod(function () {
@@ -3188,7 +3203,7 @@ module.exports =
 	        clearMethod(id);
 	      }));
 	    }
-	
+
 	    function scheduleRelative(state, dueTime, action) {
 	      var scheduler = this, dt = Scheduler.normalize(dueTime), disposable = new SingleAssignmentDisposable();
 	      if (dt === 0) { return scheduler.scheduleWithState(state, action); }
@@ -3199,30 +3214,30 @@ module.exports =
 	        localClearTimeout(id);
 	      }));
 	    }
-	
+
 	    function scheduleAbsolute(state, dueTime, action) {
 	      return this.scheduleWithRelativeAndState(state, dueTime - this.now(), action);
 	    }
-	
+
 	    return new Scheduler(defaultNow, scheduleNow, scheduleRelative, scheduleAbsolute);
 	  })();
-	
+
 	  var CatchScheduler = (function (__super__) {
-	
+
 	    function scheduleNow(state, action) {
 	      return this._scheduler.scheduleWithState(state, this._wrap(action));
 	    }
-	
+
 	    function scheduleRelative(state, dueTime, action) {
 	      return this._scheduler.scheduleWithRelativeAndState(state, dueTime, this._wrap(action));
 	    }
-	
+
 	    function scheduleAbsolute(state, dueTime, action) {
 	      return this._scheduler.scheduleWithAbsoluteAndState(state, dueTime, this._wrap(action));
 	    }
-	
+
 	    inherits(CatchScheduler, __super__);
-	
+
 	    function CatchScheduler(scheduler, handler) {
 	      this._scheduler = scheduler;
 	      this._handler = handler;
@@ -3230,11 +3245,11 @@ module.exports =
 	      this._recursiveWrapper = null;
 	      __super__.call(this, this._scheduler.now.bind(this._scheduler), scheduleNow, scheduleRelative, scheduleAbsolute);
 	    }
-	
+
 	    CatchScheduler.prototype._clone = function (scheduler) {
 	        return new CatchScheduler(scheduler, this._handler);
 	    };
-	
+
 	    CatchScheduler.prototype._wrap = function (action) {
 	      var parent = this;
 	      return function (self, state) {
@@ -3246,7 +3261,7 @@ module.exports =
 	        }
 	      };
 	    };
-	
+
 	    CatchScheduler.prototype._getRecursiveWrapper = function (scheduler) {
 	      if (this._recursiveOriginal !== scheduler) {
 	        this._recursiveOriginal = scheduler;
@@ -3257,10 +3272,10 @@ module.exports =
 	      }
 	      return this._recursiveWrapper;
 	    };
-	
+
 	    CatchScheduler.prototype.schedulePeriodicWithState = function (state, period, action) {
 	      var self = this, failed = false, d = new SingleAssignmentDisposable();
-	
+
 	      d.setDisposable(this._scheduler.schedulePeriodicWithState(state, period, function (state1) {
 	        if (failed) { return null; }
 	        try {
@@ -3272,13 +3287,13 @@ module.exports =
 	          return null;
 	        }
 	      }));
-	
+
 	      return d;
 	    };
-	
+
 	    return CatchScheduler;
 	  }(Scheduler));
-	
+
 	  /**
 	   *  Represents a notification to an observer.
 	   */
@@ -3291,7 +3306,7 @@ module.exports =
 	      this._acceptObservable = acceptObservable;
 	      this.toString = toString;
 	    }
-	
+
 	    /**
 	     * Invokes the delegate corresponding to the notification or the observer's method corresponding to the notification and returns the produced result.
 	     *
@@ -3306,7 +3321,7 @@ module.exports =
 	        this._acceptObservable(observerOrOnNext) :
 	        this._accept(observerOrOnNext, onError, onCompleted);
 	    };
-	
+
 	    /**
 	     * Returns an observable sequence with a single notification.
 	     *
@@ -3324,10 +3339,10 @@ module.exports =
 	        });
 	      });
 	    };
-	
+
 	    return Notification;
 	  })();
-	
+
 	  /**
 	   * Creates an object that represents an OnNext notification to an observer.
 	   * @param {Any} value The value contained in the notification.
@@ -3337,12 +3352,12 @@ module.exports =
 	      function _accept(onNext) { return onNext(this.value); }
 	      function _acceptObservable(observer) { return observer.onNext(this.value); }
 	      function toString() { return 'OnNext(' + this.value + ')'; }
-	
+
 	      return function (value) {
 	        return new Notification('N', value, null, _accept, _acceptObservable, toString);
 	      };
 	  }());
-	
+
 	  /**
 	   * Creates an object that represents an OnError notification to an observer.
 	   * @param {Any} error The exception contained in the notification.
@@ -3352,12 +3367,12 @@ module.exports =
 	    function _accept (onNext, onError) { return onError(this.exception); }
 	    function _acceptObservable(observer) { return observer.onError(this.exception); }
 	    function toString () { return 'OnError(' + this.exception + ')'; }
-	
+
 	    return function (e) {
 	      return new Notification('E', null, e, _accept, _acceptObservable, toString);
 	    };
 	  }());
-	
+
 	  /**
 	   * Creates an object that represents an OnCompleted notification to an observer.
 	   * @returns {Notification} The OnCompleted notification.
@@ -3366,17 +3381,17 @@ module.exports =
 	    function _accept (onNext, onError, onCompleted) { return onCompleted(); }
 	    function _acceptObservable(observer) { return observer.onCompleted(); }
 	    function toString () { return 'OnCompleted()'; }
-	
+
 	    return function () {
 	      return new Notification('C', null, null, _accept, _acceptObservable, toString);
 	    };
 	  }());
-	
+
 	  /**
 	   * Supports push-style iteration over an observable sequence.
 	   */
 	  var Observer = Rx.Observer = function () { };
-	
+
 	  /**
 	   *  Creates a notification callback from an observer.
 	   * @returns The action that forwards its input notification to the underlying observer.
@@ -3385,7 +3400,7 @@ module.exports =
 	    var observer = this;
 	    return function (n) { return n.accept(observer); };
 	  };
-	
+
 	  /**
 	   *  Hides the identity of an observer.
 	   * @returns An observer that hides the identity of the specified observer.
@@ -3393,14 +3408,14 @@ module.exports =
 	  Observer.prototype.asObserver = function () {
 	    return new AnonymousObserver(this.onNext.bind(this), this.onError.bind(this), this.onCompleted.bind(this));
 	  };
-	
+
 	  /**
 	   *  Checks access to the observer for grammar violations. This includes checking for multiple OnError or OnCompleted calls, as well as reentrancy in any of the observer methods.
 	   *  If a violation is detected, an Error is thrown from the offending observer method call.
 	   * @returns An observer that checks callbacks invocations against the observer grammar and, if the checks pass, forwards those to the specified observer.
 	   */
 	  Observer.prototype.checked = function () { return new CheckedObserver(this); };
-	
+
 	  /**
 	   *  Creates an observer from the specified OnNext, along with optional OnError, and OnCompleted actions.
 	   * @param {Function} [onNext] Observer's OnNext action implementation.
@@ -3414,7 +3429,7 @@ module.exports =
 	    onCompleted || (onCompleted = noop);
 	    return new AnonymousObserver(onNext, onError, onCompleted);
 	  };
-	
+
 	  /**
 	   *  Creates an observer from a notification callback.
 	   *
@@ -3432,7 +3447,7 @@ module.exports =
 	      return handler.call(thisArg, notificationCreateOnCompleted());
 	    });
 	  };
-	
+
 	  /**
 	   * Schedules the invocation of observer methods on the given scheduler.
 	   * @param {Scheduler} scheduler Scheduler to schedule observer messages on.
@@ -3441,18 +3456,18 @@ module.exports =
 	  Observer.prototype.notifyOn = function (scheduler) {
 	    return new ObserveOnObserver(scheduler, this);
 	  };
-	
+
 	  Observer.prototype.makeSafe = function(disposable) {
 	    return new AnonymousSafeObserver(this._onNext, this._onError, this._onCompleted, disposable);
 	  };
-	
+
 	  /**
 	   * Abstract base class for implementations of the Observer class.
 	   * This base class enforces the grammar of observers where OnError and OnCompleted are terminal messages.
 	   */
 	  var AbstractObserver = Rx.internals.AbstractObserver = (function (__super__) {
 	    inherits(AbstractObserver, __super__);
-	
+
 	    /**
 	     * Creates a new observer in a non-stopped state.
 	     */
@@ -3460,12 +3475,12 @@ module.exports =
 	      this.isStopped = false;
 	      __super__.call(this);
 	    }
-	
+
 	    // Must be implemented by other observers
 	    AbstractObserver.prototype.next = notImplemented;
 	    AbstractObserver.prototype.error = notImplemented;
 	    AbstractObserver.prototype.completed = notImplemented;
-	
+
 	    /**
 	     * Notifies the observer of a new element in the sequence.
 	     * @param {Any} value Next element in the sequence.
@@ -3473,7 +3488,7 @@ module.exports =
 	    AbstractObserver.prototype.onNext = function (value) {
 	      if (!this.isStopped) { this.next(value); }
 	    };
-	
+
 	    /**
 	     * Notifies the observer that an exception has occurred.
 	     * @param {Any} error The error that has occurred.
@@ -3484,7 +3499,7 @@ module.exports =
 	        this.error(error);
 	      }
 	    };
-	
+
 	    /**
 	     * Notifies the observer of the end of the sequence.
 	     */
@@ -3494,33 +3509,33 @@ module.exports =
 	        this.completed();
 	      }
 	    };
-	
+
 	    /**
 	     * Disposes the observer, causing it to transition to the stopped state.
 	     */
 	    AbstractObserver.prototype.dispose = function () {
 	      this.isStopped = true;
 	    };
-	
+
 	    AbstractObserver.prototype.fail = function (e) {
 	      if (!this.isStopped) {
 	        this.isStopped = true;
 	        this.error(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    return AbstractObserver;
 	  }(Observer));
-	
+
 	  /**
 	   * Class to create an Observer instance from delegate-based implementations of the on* methods.
 	   */
 	  var AnonymousObserver = Rx.AnonymousObserver = (function (__super__) {
 	    inherits(AnonymousObserver, __super__);
-	
+
 	    /**
 	     * Creates an observer from the specified OnNext, OnError, and OnCompleted actions.
 	     * @param {Any} onNext Observer's OnNext action implementation.
@@ -3533,7 +3548,7 @@ module.exports =
 	      this._onError = onError;
 	      this._onCompleted = onCompleted;
 	    }
-	
+
 	    /**
 	     * Calls the onNext action.
 	     * @param {Any} value Next element in the sequence.
@@ -3541,7 +3556,7 @@ module.exports =
 	    AnonymousObserver.prototype.next = function (value) {
 	      this._onNext(value);
 	    };
-	
+
 	    /**
 	     * Calls the onError action.
 	     * @param {Any} error The error that has occurred.
@@ -3549,61 +3564,61 @@ module.exports =
 	    AnonymousObserver.prototype.error = function (error) {
 	      this._onError(error);
 	    };
-	
+
 	    /**
 	     *  Calls the onCompleted action.
 	     */
 	    AnonymousObserver.prototype.completed = function () {
 	      this._onCompleted();
 	    };
-	
+
 	    return AnonymousObserver;
 	  }(AbstractObserver));
-	
+
 	  var CheckedObserver = (function (__super__) {
 	    inherits(CheckedObserver, __super__);
-	
+
 	    function CheckedObserver(observer) {
 	      __super__.call(this);
 	      this._observer = observer;
 	      this._state = 0; // 0 - idle, 1 - busy, 2 - done
 	    }
-	
+
 	    var CheckedObserverPrototype = CheckedObserver.prototype;
-	
+
 	    CheckedObserverPrototype.onNext = function (value) {
 	      this.checkAccess();
 	      var res = tryCatch(this._observer.onNext).call(this._observer, value);
 	      this._state = 0;
 	      res === errorObj && thrower(res.e);
 	    };
-	
+
 	    CheckedObserverPrototype.onError = function (err) {
 	      this.checkAccess();
 	      var res = tryCatch(this._observer.onError).call(this._observer, err);
 	      this._state = 2;
 	      res === errorObj && thrower(res.e);
 	    };
-	
+
 	    CheckedObserverPrototype.onCompleted = function () {
 	      this.checkAccess();
 	      var res = tryCatch(this._observer.onCompleted).call(this._observer);
 	      this._state = 2;
 	      res === errorObj && thrower(res.e);
 	    };
-	
+
 	    CheckedObserverPrototype.checkAccess = function () {
 	      if (this._state === 1) { throw new Error('Re-entrancy detected'); }
 	      if (this._state === 2) { throw new Error('Observer completed'); }
 	      if (this._state === 0) { this._state = 1; }
 	    };
-	
+
 	    return CheckedObserver;
 	  }(Observer));
-	
+
 	  var ScheduledObserver = Rx.internals.ScheduledObserver = (function (__super__) {
 	    inherits(ScheduledObserver, __super__);
-	
+
 	    function ScheduledObserver(scheduler, observer) {
 	      __super__.call(this);
 	      this.scheduler = scheduler;
@@ -3613,22 +3628,22 @@ module.exports =
 	      this.queue = [];
 	      this.disposable = new SerialDisposable();
 	    }
-	
+
 	    ScheduledObserver.prototype.next = function (value) {
 	      var self = this;
 	      this.queue.push(function () { self.observer.onNext(value); });
 	    };
-	
+
 	    ScheduledObserver.prototype.error = function (e) {
 	      var self = this;
 	      this.queue.push(function () { self.observer.onError(e); });
 	    };
-	
+
 	    ScheduledObserver.prototype.completed = function () {
 	      var self = this;
 	      this.queue.push(function () { self.observer.onCompleted(); });
 	    };
-	
+
 	    ScheduledObserver.prototype.ensureActive = function () {
 	      var isOwner = false, parent = this;
 	      if (!this.hasFaulted && this.queue.length > 0) {
@@ -3655,54 +3670,54 @@ module.exports =
 	        }));
 	      }
 	    };
-	
+
 	    ScheduledObserver.prototype.dispose = function () {
 	      __super__.prototype.dispose.call(this);
 	      this.disposable.dispose();
 	    };
-	
+
 	    return ScheduledObserver;
 	  }(AbstractObserver));
-	
+
 	  var ObserveOnObserver = (function (__super__) {
 	    inherits(ObserveOnObserver, __super__);
-	
+
 	    function ObserveOnObserver(scheduler, observer, cancel) {
 	      __super__.call(this, scheduler, observer);
 	      this._cancel = cancel;
 	    }
-	
+
 	    ObserveOnObserver.prototype.next = function (value) {
 	      __super__.prototype.next.call(this, value);
 	      this.ensureActive();
 	    };
-	
+
 	    ObserveOnObserver.prototype.error = function (e) {
 	      __super__.prototype.error.call(this, e);
 	      this.ensureActive();
 	    };
-	
+
 	    ObserveOnObserver.prototype.completed = function () {
 	      __super__.prototype.completed.call(this);
 	      this.ensureActive();
 	    };
-	
+
 	    ObserveOnObserver.prototype.dispose = function () {
 	      __super__.prototype.dispose.call(this);
 	      this._cancel && this._cancel.dispose();
 	      this._cancel = null;
 	    };
-	
+
 	    return ObserveOnObserver;
 	  })(ScheduledObserver);
-	
+
 	  var observableProto;
-	
+
 	  /**
 	   * Represents a push-style collection.
 	   */
 	  var Observable = Rx.Observable = (function () {
-	
+
 	    function Observable(subscribe) {
 	      if (Rx.config.longStackSupport && hasStacks) {
 	        try {
@@ -3710,25 +3725,25 @@ module.exports =
 	        } catch (e) {
 	          this.stack = e.stack.substring(e.stack.indexOf("\n") + 1);
 	        }
-	
+
 	        var self = this;
 	        this._subscribe = function (observer) {
 	          var oldOnError = observer.onError.bind(observer);
-	
+
 	          observer.onError = function (err) {
 	            makeStackTraceLong(err, self);
 	            oldOnError(err);
 	          };
-	
+
 	          return subscribe.call(self, observer);
 	        };
 	      } else {
 	        this._subscribe = subscribe;
 	      }
 	    }
-	
+
 	    observableProto = Observable.prototype;
-	
+
 	    /**
 	     *  Subscribes an observer to the observable sequence.
 	     *  @param {Mixed} [observerOrOnNext] The object that is to receive notifications or an action to invoke for each element in the observable sequence.
@@ -3741,7 +3756,7 @@ module.exports =
 	        observerOrOnNext :
 	        observerCreate(observerOrOnNext, onError, onCompleted));
 	    };
-	
+
 	    /**
 	     * Subscribes to the next value in the sequence with an optional "this" argument.
 	     * @param {Function} onNext The function to invoke on each element in the observable sequence.
@@ -3751,7 +3766,7 @@ module.exports =
 	    observableProto.subscribeOnNext = function (onNext, thisArg) {
 	      return this._subscribe(observerCreate(typeof thisArg !== 'undefined' ? function(x) { onNext.call(thisArg, x); } : onNext));
 	    };
-	
+
 	    /**
 	     * Subscribes to an exceptional condition in the sequence with an optional "this" argument.
 	     * @param {Function} onError The function to invoke upon exceptional termination of the observable sequence.
@@ -3761,7 +3776,7 @@ module.exports =
 	    observableProto.subscribeOnError = function (onError, thisArg) {
 	      return this._subscribe(observerCreate(null, typeof thisArg !== 'undefined' ? function(e) { onError.call(thisArg, e); } : onError));
 	    };
-	
+
 	    /**
 	     * Subscribes to the next value in the sequence with an optional "this" argument.
 	     * @param {Function} onCompleted The function to invoke upon graceful termination of the observable sequence.
@@ -3771,31 +3786,31 @@ module.exports =
 	    observableProto.subscribeOnCompleted = function (onCompleted, thisArg) {
 	      return this._subscribe(observerCreate(null, null, typeof thisArg !== 'undefined' ? function() { onCompleted.call(thisArg); } : onCompleted));
 	    };
-	
+
 	    return Observable;
 	  })();
-	
+
 	  var ObservableBase = Rx.ObservableBase = (function (__super__) {
 	    inherits(ObservableBase, __super__);
-	
+
 	    function fixSubscriber(subscriber) {
 	      return subscriber && isFunction(subscriber.dispose) ? subscriber :
 	        isFunction(subscriber) ? disposableCreate(subscriber) : disposableEmpty;
 	    }
-	
+
 	    function setDisposable(s, state) {
 	      var ado = state[0], self = state[1];
 	      var sub = tryCatch(self.subscribeCore).call(self, ado);
-	
+
 	      if (sub === errorObj) {
 	        if(!ado.fail(errorObj.e)) { return thrower(errorObj.e); }
 	      }
 	      ado.setDisposable(fixSubscriber(sub));
 	    }
-	
+
 	    function subscribe(observer) {
 	      var ado = new AutoDetachObserver(observer), state = [ado, this];
-	
+
 	      if (currentThreadScheduler.scheduleRequired()) {
 	        currentThreadScheduler.scheduleWithState(state, setDisposable);
 	      } else {
@@ -3803,18 +3818,18 @@ module.exports =
 	      }
 	      return ado;
 	    }
-	
+
 	    function ObservableBase() {
 	      __super__.call(this, subscribe);
 	    }
-	
+
 	    ObservableBase.prototype.subscribeCore = notImplemented;
-	
+
 	    return ObservableBase;
 	  }(Observable));
-	
+
 	  var Enumerable = Rx.internals.Enumerable = function () { };
-	
+
 	  var ConcatEnumerableObservable = (function(__super__) {
 	    inherits(ConcatEnumerableObservable, __super__);
 	    function ConcatEnumerableObservable(sources) {
@@ -3828,20 +3843,20 @@ module.exports =
 	        if (isDisposed) { return; }
 	        var currentItem = tryCatch(e.next).call(e);
 	        if (currentItem === errorObj) { return o.onError(currentItem.e); }
-	
+
 	        if (currentItem.done) {
 	          return o.onCompleted();
 	        }
-	
+
 	        // Check if promise
 	        var currentValue = currentItem.value;
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(new InnerObserver(o, self, e)));
 	      });
-	
+
 	      return new CompositeDisposable(subscription, cancelable, disposableCreate(function () {
 	        isDisposed = true;
 	      }));
@@ -3878,7 +3893,7 @@ module.exports =
 	    
 	    return ConcatEnumerableObservable;
 	  }(ObservableBase));
-	
+
 	  Enumerable.prototype.concat = function () {
 	    return new ConcatEnumerableObservable(this);
 	  };
@@ -3892,21 +3907,21 @@ module.exports =
 	    
 	    CatchErrorObservable.prototype.subscribeCore = function (o) {
 	      var e = this.sources[$iterator$]();
-	
+
 	      var isDisposed, subscription = new SerialDisposable();
 	      var cancelable = immediateScheduler.scheduleRecursiveWithState(null, function (lastException, self) {
 	        if (isDisposed) { return; }
 	        var currentItem = tryCatch(e.next).call(e);
 	        if (currentItem === errorObj) { return o.onError(currentItem.e); }
-	
+
 	        if (currentItem.done) {
 	          return lastException !== null ? o.onError(lastException) : o.onCompleted();
 	        }
-	
+
 	        // Check if promise
 	        var currentValue = currentItem.value;
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(
@@ -3921,11 +3936,11 @@ module.exports =
 	    
 	    return CatchErrorObservable;
 	  }(ObservableBase));
-	
+
 	  Enumerable.prototype.catchError = function () {
 	    return new CatchErrorObservable(this);
 	  };
-	
+
 	  Enumerable.prototype.catchErrorWhen = function (notificationHandler) {
 	    var sources = this;
 	    return new AnonymousObservable(function (o) {
@@ -3933,9 +3948,9 @@ module.exports =
 	        notifier = new Subject(),
 	        handled = notificationHandler(exceptions),
 	        notificationDisposable = handled.subscribe(notifier);
-	
+
 	      var e = sources[$iterator$]();
-	
+
 	      var isDisposed,
 	        lastException,
 	        subscription = new SerialDisposable();
@@ -3943,7 +3958,7 @@ module.exports =
 	        if (isDisposed) { return; }
 	        var currentItem = tryCatch(e.next).call(e);
 	        if (currentItem === errorObj) { return o.onError(currentItem.e); }
-	
+
 	        if (currentItem.done) {
 	          if (lastException) {
 	            o.onError(lastException);
@@ -3952,11 +3967,11 @@ module.exports =
 	          }
 	          return;
 	        }
-	
+
 	        // Check if promise
 	        var currentValue = currentItem.value;
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var outer = new SingleAssignmentDisposable();
 	        var inner = new SingleAssignmentDisposable();
 	        subscription.setDisposable(new CompositeDisposable(inner, outer));
@@ -3968,12 +3983,12 @@ module.exports =
 	            }, function() {
 	              o.onCompleted();
 	            }));
-	
+
 	            exceptions.onNext(exn);
 	          },
 	          function() { o.onCompleted(); }));
 	      });
-	
+
 	      return new CompositeDisposable(notificationDisposable, subscription, cancelable, disposableCreate(function () {
 	        isDisposed = true;
 	      }));
@@ -4003,7 +4018,7 @@ module.exports =
 	    
 	    return RepeatEnumerable;
 	  }(Enumerable));
-	
+
 	  var enumerableRepeat = Enumerable.repeat = function (value, repeatCount) {
 	    return new RepeatEnumerable(value, repeatCount);
 	  };
@@ -4032,11 +4047,11 @@ module.exports =
 	    
 	    return OfEnumerable;
 	  }(Enumerable));
-	
+
 	  var enumerableOf = Enumerable.of = function (source, selector, thisArg) {
 	    return new OfEnumerable(source, selector, thisArg);
 	  };
-	
+
 	   /**
 	   *  Wraps the source sequence in order to run its observer callbacks on the specified scheduler.
 	   *
@@ -4052,14 +4067,14 @@ module.exports =
 	      return source.subscribe(new ObserveOnObserver(scheduler, observer));
 	    }, source);
 	  };
-	
+
 	   /**
 	   *  Wraps the source sequence in order to run its subscription and unsubscription logic on the specified scheduler. This operation is not commonly used;
 	   *  see the remarks section for more information on the distinction between subscribeOn and observeOn.
-	
+
 	   *  This only performs the side-effects of subscription and unsubscription on the specified scheduler. In order to invoke observer
 	   *  callbacks on a scheduler, use observeOn.
-	
+
 	   *  @param {Scheduler} scheduler Scheduler to perform subscription and unsubscription actions on.
 	   *  @returns {Observable} The source sequence whose subscriptions and unsubscriptions happen on the specified scheduler.
 	   */
@@ -4074,7 +4089,7 @@ module.exports =
 	      return d;
 	    }, source);
 	  };
-	
+
 		var FromPromiseObservable = (function(__super__) {
 			inherits(FromPromiseObservable, __super__);
 			function FromPromiseObservable(p) {
@@ -4127,18 +4142,18 @@ module.exports =
 	      });
 	    });
 	  };
-	
+
 	  var ToArrayObservable = (function(__super__) {
 	    inherits(ToArrayObservable, __super__);
 	    function ToArrayObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    ToArrayObservable.prototype.subscribeCore = function(o) {
 	      return this.source.subscribe(new InnerObserver(o));
 	    };
-	
+
 	    function InnerObserver(o) {
 	      this.o = o;
 	      this.a = [];
@@ -4168,10 +4183,10 @@ module.exports =
 	 
 	      return false;
 	    };
-	
+
 	    return ToArrayObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Creates an array from an observable sequence.
 	  * @returns {Observable} An observable sequence containing a single element with a list containing all the elements of the source sequence.
@@ -4179,7 +4194,7 @@ module.exports =
 	  observableProto.toArray = function () {
 	    return new ToArrayObservable(this);
 	  };
-	
+
 	  /**
 	   *  Creates an observable sequence from a specified subscribe method implementation.
 	   * @example
@@ -4192,7 +4207,7 @@ module.exports =
 	  Observable.create = Observable.createWithDisposable = function (subscribe, parent) {
 	    return new AnonymousObservable(subscribe, parent);
 	  };
-	
+
 	  /**
 	   *  Returns an observable sequence that invokes the specified factory function whenever a new observer subscribes.
 	   *
@@ -4213,35 +4228,35 @@ module.exports =
 	      return result.subscribe(observer);
 	    });
 	  };
-	
+
 	  var EmptyObservable = (function(__super__) {
 	    inherits(EmptyObservable, __super__);
 	    function EmptyObservable(scheduler) {
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    EmptyObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new EmptySink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    function EmptySink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    function scheduleItem(s, state) {
 	      state.onCompleted();
 	    }
-	
+
 	    EmptySink.prototype.run = function () {
 	      return this.parent.scheduler.scheduleWithState(this.observer, scheduleItem);
 	    };
-	
+
 	    return EmptyObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Returns an empty observable sequence, using the specified scheduler to send out the single OnCompleted message.
 	   *
@@ -4255,7 +4270,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
 	    return new EmptyObservable(scheduler);
 	  };
-	
+
 	  var FromObservable = (function(__super__) {
 	    inherits(FromObservable, __super__);
 	    function FromObservable(iterable, mapper, scheduler) {
@@ -4264,27 +4279,27 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    FromObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new FromSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return FromObservable;
 	  }(ObservableBase));
-	
+
 	  var FromSink = (function () {
 	    function FromSink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    FromSink.prototype.run = function () {
 	      var list = Object(this.parent.iterable),
 	          it = getIterable(list),
 	          observer = this.observer,
 	          mapper = this.parent.mapper;
-	
+
 	      function loopRecursive(i, recurse) {
 	        try {
 	          var next = it.next();
@@ -4294,9 +4309,9 @@ module.exports =
 	        if (next.done) {
 	          return observer.onCompleted();
 	        }
-	
+
 	        var result = next.value;
-	
+
 	        if (mapper) {
 	          try {
 	            result = mapper(result, i);
@@ -4304,71 +4319,71 @@ module.exports =
 	            return observer.onError(e);
 	          }
 	        }
-	
+
 	        observer.onNext(result);
 	        recurse(i + 1);
 	      }
-	
+
 	      return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	    };
-	
+
 	    return FromSink;
 	  }());
-	
+
 	  var maxSafeInteger = Math.pow(2, 53) - 1;
-	
+
 	  function StringIterable(str) {
 	    this._s = s;
 	  }
-	
+
 	  StringIterable.prototype[$iterator$] = function () {
 	    return new StringIterator(this._s);
 	  };
-	
+
 	  function StringIterator(str) {
 	    this._s = s;
 	    this._l = s.length;
 	    this._i = 0;
 	  }
-	
+
 	  StringIterator.prototype[$iterator$] = function () {
 	    return this;
 	  };
-	
+
 	  StringIterator.prototype.next = function () {
 	    return this._i < this._l ? { done: false, value: this._s.charAt(this._i++) } : doneEnumerator;
 	  };
-	
+
 	  function ArrayIterable(a) {
 	    this._a = a;
 	  }
-	
+
 	  ArrayIterable.prototype[$iterator$] = function () {
 	    return new ArrayIterator(this._a);
 	  };
-	
+
 	  function ArrayIterator(a) {
 	    this._a = a;
 	    this._l = toLength(a);
 	    this._i = 0;
 	  }
-	
+
 	  ArrayIterator.prototype[$iterator$] = function () {
 	    return this;
 	  };
-	
+
 	  ArrayIterator.prototype.next = function () {
 	    return this._i < this._l ? { done: false, value: this._a[this._i++] } : doneEnumerator;
 	  };
-	
+
 	  function numberIsFinite(value) {
 	    return typeof value === 'number' && root.isFinite(value);
 	  }
-	
+
 	  function isNan(n) {
 	    return n !== n;
 	  }
-	
+
 	  function getIterable(o) {
 	    var i = o[$iterator$], it;
 	    if (!i && typeof o === 'string') {
@@ -4382,14 +4397,14 @@ module.exports =
 	    if (!i) { throw new TypeError('Object is not iterable'); }
 	    return o[$iterator$]();
 	  }
-	
+
 	  function sign(value) {
 	    var number = +value;
 	    if (number === 0) { return number; }
 	    if (isNaN(number)) { return number; }
 	    return number < 0 ? -1 : 1;
 	  }
-	
+
 	  function toLength(o) {
 	    var len = +o.length;
 	    if (isNaN(len)) { return 0; }
@@ -4399,7 +4414,7 @@ module.exports =
 	    if (len > maxSafeInteger) { return maxSafeInteger; }
 	    return len;
 	  }
-	
+
 	  /**
 	  * This method creates a new Observable sequence from an array-like or iterable object.
 	  * @param {Any} arrayLike An array-like or iterable object to convert to an Observable sequence.
@@ -4420,7 +4435,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new FromObservable(iterable, mapper, scheduler);
 	  }
-	
+
 	  var FromArrayObservable = (function(__super__) {
 	    inherits(FromArrayObservable, __super__);
 	    function FromArrayObservable(args, scheduler) {
@@ -4428,20 +4443,20 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    FromArrayObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new FromArraySink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return FromArrayObservable;
 	  }(ObservableBase));
-	
+
 	  function FromArraySink(observer, parent) {
 	    this.observer = observer;
 	    this.parent = parent;
 	  }
-	
+
 	  FromArraySink.prototype.run = function () {
 	    var observer = this.observer, args = this.parent.args, len = args.length;
 	    function loopRecursive(i, recurse) {
@@ -4452,10 +4467,10 @@ module.exports =
 	        observer.onCompleted();
 	      }
 	    }
-	
+
 	    return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	  };
-	
+
 	  /**
 	  *  Converts an array to an observable sequence, using an optional scheduler to enumerate the array.
 	  * @deprecated use Observable.from or Observable.of
@@ -4466,7 +4481,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new FromArrayObservable(array, scheduler)
 	  };
-	
+
 	  /**
 	   *  Generates an observable sequence by running a state-driven loop producing the sequence's elements, using the specified scheduler to send out observer messages.
 	   *
@@ -4506,20 +4521,20 @@ module.exports =
 	      });
 	    });
 	  };
-	
+
 	  var NeverObservable = (function(__super__) {
 	    inherits(NeverObservable, __super__);
 	    function NeverObservable() {
 	      __super__.call(this);
 	    }
-	
+
 	    NeverObservable.prototype.subscribeCore = function (observer) {
 	      return disposableEmpty;
 	    };
-	
+
 	    return NeverObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   * Returns a non-terminating observable sequence, which can be used to denote an infinite duration (e.g. when using reactive joins).
 	   * @returns {Observable} An observable sequence whose observers will never get called.
@@ -4527,12 +4542,12 @@ module.exports =
 	  var observableNever = Observable.never = function () {
 	    return new NeverObservable();
 	  };
-	
+
 	  function observableOf (scheduler, array) {
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new FromArrayObservable(array, scheduler);
 	  }
-	
+
 	  /**
 	  *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
 	  * @returns {Observable} The observable sequence whose elements are pulled from the given arguments.
@@ -4542,7 +4557,7 @@ module.exports =
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    return new FromArrayObservable(args, currentThreadScheduler);
 	  };
-	
+
 	  /**
 	  *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
 	  * @param {Scheduler} scheduler A scheduler to use for scheduling the arguments.
@@ -4553,7 +4568,7 @@ module.exports =
 	    for(var i = 1; i < len; i++) { args[i - 1] = arguments[i]; }
 	    return new FromArrayObservable(args, scheduler);
 	  };
-	
+
 	  var PairsObservable = (function(__super__) {
 	    inherits(PairsObservable, __super__);
 	    function PairsObservable(obj, scheduler) {
@@ -4562,20 +4577,20 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    PairsObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new PairsSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return PairsObservable;
 	  }(ObservableBase));
-	
+
 	  function PairsSink(observer, parent) {
 	    this.observer = observer;
 	    this.parent = parent;
 	  }
-	
+
 	  PairsSink.prototype.run = function () {
 	    var observer = this.observer, obj = this.parent.obj, keys = this.parent.keys, len = keys.length;
 	    function loopRecursive(i, recurse) {
@@ -4587,10 +4602,10 @@ module.exports =
 	        observer.onCompleted();
 	      }
 	    }
-	
+
 	    return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	  };
-	
+
 	  /**
 	   * Convert an object into an observable sequence of [key, value] pairs.
 	   * @param {Object} obj The object to inspect.
@@ -4601,7 +4616,7 @@ module.exports =
 	    scheduler || (scheduler = currentThreadScheduler);
 	    return new PairsObservable(obj, scheduler);
 	  };
-	
+
 	    var RangeObservable = (function(__super__) {
 	    inherits(RangeObservable, __super__);
 	    function RangeObservable(start, count, scheduler) {
@@ -4610,21 +4625,21 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    RangeObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new RangeSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return RangeObservable;
 	  }(ObservableBase));
-	
+
 	  var RangeSink = (function () {
 	    function RangeSink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    RangeSink.prototype.run = function () {
 	      var start = this.parent.start, count = this.parent.rangeCount, observer = this.observer;
 	      function loopRecursive(i, recurse) {
@@ -4635,13 +4650,13 @@ module.exports =
 	          observer.onCompleted();
 	        }
 	      }
-	
+
 	      return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	    };
-	
+
 	    return RangeSink;
 	  }());
-	
+
 	  /**
 	  *  Generates an observable sequence of integral numbers within a specified range, using the specified scheduler to send out observer messages.
 	  * @param {Number} start The value of the first integer in the sequence.
@@ -4653,7 +4668,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new RangeObservable(start, count, scheduler);
 	  };
-	
+
 	  var RepeatObservable = (function(__super__) {
 	    inherits(RepeatObservable, __super__);
 	    function RepeatObservable(value, repeatCount, scheduler) {
@@ -4662,20 +4677,20 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    RepeatObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new RepeatSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return RepeatObservable;
 	  }(ObservableBase));
-	
+
 	  function RepeatSink(observer, parent) {
 	    this.observer = observer;
 	    this.parent = parent;
 	  }
-	
+
 	  RepeatSink.prototype.run = function () {
 	    var observer = this.observer, value = this.parent.value;
 	    function loopRecursive(i, recurse) {
@@ -4686,10 +4701,10 @@ module.exports =
 	      if (i === 0) { return observer.onCompleted(); }
 	      recurse(i);
 	    }
-	
+
 	    return this.parent.scheduler.scheduleRecursiveWithState(this.parent.repeatCount, loopRecursive);
 	  };
-	
+
 	  /**
 	   *  Generates an observable sequence that repeats the given element the specified number of times, using the specified scheduler to send out observer messages.
 	   * @param {Mixed} value Element to repeat.
@@ -4701,7 +4716,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new RepeatObservable(value, repeatCount, scheduler);
 	  };
-	
+
 	  var JustObservable = (function(__super__) {
 	    inherits(JustObservable, __super__);
 	    function JustObservable(value, scheduler) {
@@ -4709,30 +4724,30 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    JustObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new JustSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    function JustSink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    function scheduleItem(s, state) {
 	      var value = state[0], observer = state[1];
 	      observer.onNext(value);
 	      observer.onCompleted();
 	    }
-	
+
 	    JustSink.prototype.run = function () {
 	      return this.parent.scheduler.scheduleWithState([this.parent.value, this.observer], scheduleItem);
 	    };
-	
+
 	    return JustObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Returns an observable sequence that contains a single element, using the specified scheduler to send out observer messages.
 	   *  There is an alias called 'just' or browsers <IE9.
@@ -4744,7 +4759,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
 	    return new JustObservable(value, scheduler);
 	  };
-	
+
 	  var ThrowObservable = (function(__super__) {
 	    inherits(ThrowObservable, __super__);
 	    function ThrowObservable(error, scheduler) {
@@ -4752,29 +4767,29 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    ThrowObservable.prototype.subscribeCore = function (o) {
 	      var sink = new ThrowSink(o, this);
 	      return sink.run();
 	    };
-	
+
 	    function ThrowSink(o, p) {
 	      this.o = o;
 	      this.p = p;
 	    }
-	
+
 	    function scheduleItem(s, state) {
 	      var e = state[0], o = state[1];
 	      o.onError(e);
 	    }
-	
+
 	    ThrowSink.prototype.run = function () {
 	      return this.p.scheduler.scheduleWithState([this.p.error, this.o], scheduleItem);
 	    };
-	
+
 	    return ThrowObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Returns an observable sequence that terminates with an exception, using the specified scheduler to send out the single onError message.
 	   *  There is an alias to this method called 'throwError' for browsers <IE9.
@@ -4786,7 +4801,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
 	    return new ThrowObservable(error, scheduler);
 	  };
-	
+
 	  /**
 	   * Constructs an observable sequence that depends on a resource object, whose lifetime is tied to the resulting observable sequence's lifetime.
 	   * @param {Function} resourceFactory Factory function to obtain a resource object.
@@ -4806,7 +4821,7 @@ module.exports =
 	      return new CompositeDisposable(source.subscribe(observer), disposable);
 	    });
 	  };
-	
+
 	  /**
 	   * Propagates the observable sequence or Promise that reacts first.
 	   * @param {Observable} rightSource Second observable sequence or Promise.
@@ -4819,23 +4834,23 @@ module.exports =
 	        leftChoice = 'L', rightChoice = 'R',
 	        leftSubscription = new SingleAssignmentDisposable(),
 	        rightSubscription = new SingleAssignmentDisposable();
-	
+
 	      isPromise(rightSource) && (rightSource = observableFromPromise(rightSource));
-	
+
 	      function choiceL() {
 	        if (!choice) {
 	          choice = leftChoice;
 	          rightSubscription.dispose();
 	        }
 	      }
-	
+
 	      function choiceR() {
 	        if (!choice) {
 	          choice = rightChoice;
 	          leftSubscription.dispose();
 	        }
 	      }
-	
+
 	      leftSubscription.setDisposable(leftSource.subscribe(function (left) {
 	        choiceL();
 	        choice === leftChoice && observer.onNext(left);
@@ -4846,7 +4861,7 @@ module.exports =
 	        choiceL();
 	        choice === leftChoice && observer.onCompleted();
 	      }));
-	
+
 	      rightSubscription.setDisposable(rightSource.subscribe(function (right) {
 	        choiceR();
 	        choice === rightChoice && observer.onNext(right);
@@ -4857,11 +4872,11 @@ module.exports =
 	        choiceR();
 	        choice === rightChoice && observer.onCompleted();
 	      }));
-	
+
 	      return new CompositeDisposable(leftSubscription, rightSubscription);
 	    });
 	  };
-	
+
 	  /**
 	   * Propagates the observable sequence or Promise that reacts first.
 	   *
@@ -4876,7 +4891,7 @@ module.exports =
 	    } else {
 	      for(var i = 0, len = arguments.length; i < len; i++) { items.push(arguments[i]); }
 	    }
-	
+
 	    function func(previous, current) {
 	      return previous.amb(current);
 	    }
@@ -4885,7 +4900,7 @@ module.exports =
 	    }
 	    return acc;
 	  };
-	
+
 	  function observableCatchHandler(source, handler) {
 	    return new AnonymousObservable(function (o) {
 	      var d1 = new SingleAssignmentDisposable(), subscription = new SerialDisposable();
@@ -4897,16 +4912,16 @@ module.exports =
 	          return o.onError(ex);
 	        }
 	        isPromise(result) && (result = observableFromPromise(result));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(result.subscribe(o));
 	      }, function (x) { o.onCompleted(x); }));
-	
+
 	      return subscription;
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated by an exception with the next observable sequence.
 	   * @example
@@ -4920,7 +4935,7 @@ module.exports =
 	      observableCatchHandler(this, handlerOrSecond) :
 	      observableCatch([this, handlerOrSecond]);
 	  };
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated by an exception with the next observable sequence.
 	   * @param {Array | Arguments} args Arguments or an array to use as the next sequence if an error occurs.
@@ -4935,7 +4950,7 @@ module.exports =
 	    }
 	    return enumerableOf(items).catchError();
 	  };
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever any of the observable sequences or Promises produces an element.
 	   * This can be in the form of an argument list of observables or an array.
@@ -4955,7 +4970,7 @@ module.exports =
 	    }
 	    return combineLatest.apply(this, args);
 	  };
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever any of the observable sequences or Promises produces an element.
 	   *
@@ -4969,7 +4984,7 @@ module.exports =
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    var resultSelector = args.pop();
 	    Array.isArray(args[0]) && (args = args[0]);
-	
+
 	    return new AnonymousObservable(function (o) {
 	      var n = args.length,
 	        falseFactory = function () { return false; },
@@ -4977,7 +4992,7 @@ module.exports =
 	        hasValueAll = false,
 	        isDone = arrayInitialize(n, falseFactory),
 	        values = new Array(n);
-	
+
 	      function next(i) {
 	        hasValue[i] = true;
 	        if (hasValueAll || (hasValueAll = hasValue.every(identity))) {
@@ -4991,12 +5006,12 @@ module.exports =
 	          o.onCompleted();
 	        }
 	      }
-	
+
 	      function done (i) {
 	        isDone[i] = true;
 	        isDone.every(identity) && o.onCompleted();
 	      }
-	
+
 	      var subscriptions = new Array(n);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -5012,11 +5027,11 @@ module.exports =
 	          subscriptions[i] = sad;
 	        }(idx));
 	      }
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    }, this);
 	  };
-	
+
 	  /**
 	   * Concatenates all the observable sequences.  This takes in either an array or variable arguments to concatenate.
 	   * @returns {Observable} An observable sequence that contains the elements of each given sequence, in sequential order.
@@ -5026,7 +5041,7 @@ module.exports =
 	    args.unshift(this);
 	    return observableConcat.apply(null, args);
 	  };
-	
+
 		var ConcatObservable = (function(__super__) {
 			inherits(ConcatObservable, __super__);
 			function ConcatObservable(sources) {
@@ -5054,7 +5069,7 @@ module.exports =
 	        // Check if promise
 	        var currentValue = sources[i];
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(
@@ -5063,7 +5078,7 @@ module.exports =
 	          function () { self(i + 1); }
 	        ));
 	      });
-	
+
 	      return new CompositeDisposable(subscription, cancelable, disposableCreate(function () {
 	        isDisposed = true;
 	      }));
@@ -5088,7 +5103,7 @@ module.exports =
 	    }
 	    return new ConcatObservable(args);
 	  };
-	
+
 	  /**
 	   * Concatenates an observable sequence of observable sequences.
 	   * @returns {Observable} An observable sequence that contains the elements of each observed inner sequence, in sequential order.
@@ -5096,26 +5111,26 @@ module.exports =
 	  observableProto.concatAll = observableProto.concatObservable = function () {
 	    return this.merge(1);
 	  };
-	
+
 	  var MergeObservable = (function (__super__) {
 	    inherits(MergeObservable, __super__);
-	
+
 	    function MergeObservable(source, maxConcurrent) {
 	      this.source = source;
 	      this.maxConcurrent = maxConcurrent;
 	      __super__.call(this);
 	    }
-	
+
 	    MergeObservable.prototype.subscribeCore = function(observer) {
 	      var g = new CompositeDisposable();
 	      g.add(this.source.subscribe(new MergeObserver(observer, this.maxConcurrent, g)));
 	      return g;
 	    };
-	
+
 	    return MergeObservable;
-	
+
 	  }(ObservableBase));
-	
+
 	  var MergeObserver = (function () {
 	    function MergeObserver(o, max, g) {
 	      this.o = o;
@@ -5161,10 +5176,10 @@ module.exports =
 	          this.o.onError(e);
 	          return true;
 	        }
-	
+
 	        return false;
 	      };
-	
+
 	      function InnerObserver(parent, sad) {
 	        this.parent = parent;
 	        this.sad = sad;
@@ -5197,17 +5212,17 @@ module.exports =
 	          this.parent.o.onError(e);
 	          return true;
 	        }
-	
+
 	        return false;
 	      };
-	
+
 	      return MergeObserver;
 	  }());
-	
-	
-	
-	
-	
+
+
+
+
+
 	  /**
 	  * Merges an observable sequence of observable sequences into an observable sequence, limiting the number of concurrent subscriptions to inner sequences.
 	  * Or merges two observable sequences into a single observable sequence.
@@ -5223,7 +5238,7 @@ module.exports =
 	      observableMerge(this, maxConcurrentOrOther) :
 	      new MergeObservable(this, maxConcurrentOrOther);
 	  };
-	
+
 	  /**
 	   * Merges all the observable sequences into a single observable sequence.
 	   * The scheduler is optional and if not specified, the immediate scheduler is used.
@@ -5246,7 +5261,7 @@ module.exports =
 	    }
 	    return observableOf(scheduler, sources).mergeAll();
 	  };
-	
+
 	  var CompositeError = Rx.CompositeError = function(errors) {
 	    this.name = "NotImplementedError";
 	    this.innerErrors = errors;
@@ -5254,7 +5269,7 @@ module.exports =
 	    Error.call(this);
 	  }
 	  CompositeError.prototype = Error.prototype;
-	
+
 	  /**
 	  * Flattens an Observable that emits Observables into one Observable, in a way that allows an Observer to
 	  * receive all successfully emitted items from all of the source Observables without being interrupted by
@@ -5276,13 +5291,13 @@ module.exports =
 	      for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    }
 	    var source = observableOf(null, args);
-	
+
 	    return new AnonymousObservable(function (o) {
 	      var group = new CompositeDisposable(),
 	        m = new SingleAssignmentDisposable(),
 	        isStopped = false,
 	        errors = [];
-	
+
 	      function setCompletion() {
 	        if (errors.length === 0) {
 	          o.onCompleted();
@@ -5292,17 +5307,17 @@ module.exports =
 	          o.onError(new CompositeError(errors));
 	        }
 	      }
-	
+
 	      group.add(m);
-	
+
 	      m.setDisposable(source.subscribe(
 	        function (innerSource) {
 	          var innerSubscription = new SingleAssignmentDisposable();
 	          group.add(innerSubscription);
-	
+
 	          // Check for promises support
 	          isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
-	
+
 	          innerSubscription.setDisposable(innerSource.subscribe(
 	            function (x) { o.onNext(x); },
 	            function (e) {
@@ -5327,15 +5342,15 @@ module.exports =
 	      return group;
 	    });
 	  };
-	
+
 	  var MergeAllObservable = (function (__super__) {
 	    inherits(MergeAllObservable, __super__);
-	
+
 	    function MergeAllObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    MergeAllObservable.prototype.subscribeCore = function (observer) {
 	      var g = new CompositeDisposable(), m = new SingleAssignmentDisposable();
 	      g.add(m);
@@ -5353,9 +5368,9 @@ module.exports =
 	      if(this.isStopped) { return; }
 	      var sad = new SingleAssignmentDisposable();
 	      this.g.add(sad);
-	
+
 	      isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
-	
+
 	      sad.setDisposable(innerSource.subscribe(new InnerObserver(this, this.g, sad)));
 	    };
 	    MergeAllObserver.prototype.onError = function (e) {
@@ -5378,10 +5393,10 @@ module.exports =
 	        this.o.onError(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    function InnerObserver(parent, g, sad) {
 	      this.parent = parent;
 	      this.g = g;
@@ -5410,13 +5425,13 @@ module.exports =
 	        this.parent.o.onError(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    return MergeAllObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Merges an observable sequence of observable sequences into an observable sequence.
 	  * @returns {Observable} The observable sequence that merges the elements of the inner sequences.
@@ -5424,7 +5439,7 @@ module.exports =
 	  observableProto.mergeAll = observableProto.mergeObservable = function () {
 	    return new MergeAllObservable(this);
 	  };
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated normally or by an exception with the next observable sequence.
 	   * @param {Observable} second Second observable sequence used to produce results after the first sequence terminates.
@@ -5434,7 +5449,7 @@ module.exports =
 	    if (!second) { throw new Error('Second observable is required'); }
 	    return onErrorResumeNext([this, second]);
 	  };
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated normally or by an exception with the next observable sequence.
 	   *
@@ -5467,7 +5482,7 @@ module.exports =
 	      return new CompositeDisposable(subscription, cancelable);
 	    });
 	  };
-	
+
 	  /**
 	   * Returns the values from the source observable sequence only after the other observable sequence produces a value.
 	   * @param {Observable | Promise} other The observable sequence or Promise that triggers propagation of elements of the source sequence.
@@ -5482,9 +5497,9 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () {
 	        isOpen && o.onCompleted();
 	      }));
-	
+
 	      isPromise(other) && (other = observableFromPromise(other));
-	
+
 	      var rightSubscription = new SingleAssignmentDisposable();
 	      disposables.add(rightSubscription);
 	      rightSubscription.setDisposable(other.subscribe(function () {
@@ -5493,23 +5508,23 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () {
 	        rightSubscription.dispose();
 	      }));
-	
+
 	      return disposables;
 	    }, source);
 	  };
-	
+
 	  var SwitchObservable = (function(__super__) {
 	    inherits(SwitchObservable, __super__);
 	    function SwitchObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    SwitchObservable.prototype.subscribeCore = function (o) {
 	      var inner = new SerialDisposable(), s = this.source.subscribe(new SwitchObserver(o, inner));
 	      return new CompositeDisposable(s, inner);
 	    };
-	
+
 	    function SwitchObserver(o, inner) {
 	      this.o = o;
 	      this.inner = inner;
@@ -5548,7 +5563,7 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    function InnerObserver(parent, id) {
 	      this.parent = parent;
 	      this.id = id;
@@ -5582,10 +5597,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return SwitchObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Transforms an observable sequence of observable sequences into an observable sequence producing values only from the most recent observable sequence.
 	  * @returns {Observable} The observable sequence that at any point in time produces the elements of the most recent inner observable sequence that has been received.
@@ -5593,23 +5608,23 @@ module.exports =
 	  observableProto['switch'] = observableProto.switchLatest = function () {
 	    return new SwitchObservable(this);
 	  };
-	
+
 	  var TakeUntilObservable = (function(__super__) {
 	    inherits(TakeUntilObservable, __super__);
-	
+
 	    function TakeUntilObservable(source, other) {
 	      this.source = source;
 	      this.other = isPromise(other) ? observableFromPromise(other) : other;
 	      __super__.call(this);
 	    }
-	
+
 	    TakeUntilObservable.prototype.subscribeCore = function(o) {
 	      return new CompositeDisposable(
 	        this.source.subscribe(o),
 	        this.other.subscribe(new InnerObserver(o))
 	      );
 	    };
-	
+
 	    function InnerObserver(o) {
 	      this.o = o;
 	      this.isStopped = false;
@@ -5636,10 +5651,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return TakeUntilObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   * Returns the values from the source observable sequence until the other observable sequence produces a value.
 	   * @param {Observable | Promise} other Observable sequence or Promise that terminates propagation of elements of the source sequence.
@@ -5648,9 +5663,9 @@ module.exports =
 	  observableProto.takeUntil = function (other) {
 	    return new TakeUntilObservable(this, other);
 	  };
-	
+
 	  function falseFactory() { return false; }
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function only when the (first) source observable sequence produces an element.
 	   * @returns {Observable} An observable sequence containing the result of combining elements of the sources using the specified result selector function.
@@ -5660,13 +5675,13 @@ module.exports =
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    var resultSelector = args.pop(), source = this;
 	    Array.isArray(args[0]) && (args = args[0]);
-	
+
 	    return new AnonymousObservable(function (observer) {
 	      var n = args.length,
 	        hasValue = arrayInitialize(n, falseFactory),
 	        hasValueAll = false,
 	        values = new Array(n);
-	
+
 	      var subscriptions = new Array(n + 1);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -5680,7 +5695,7 @@ module.exports =
 	          subscriptions[i] = sad;
 	        }(idx));
 	      }
-	
+
 	      var sad = new SingleAssignmentDisposable();
 	      sad.setDisposable(source.subscribe(function (x) {
 	        var allValues = [x].concat(values);
@@ -5692,11 +5707,11 @@ module.exports =
 	        observer.onCompleted();
 	      }));
 	      subscriptions[n] = sad;
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    }, this);
 	  };
-	
+
 	  function zipArray(second, resultSelector) {
 	    var first = this;
 	    return new AnonymousObservable(function (o) {
@@ -5712,10 +5727,10 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, first);
 	  }
-	
+
 	  function falseFactory() { return false; }
 	  function emptyArrayFactory() { return []; }
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever all of the observable sequences or an array have produced an element at a corresponding index.
 	   * The last element in the arguments must be a function to invoke for each series of elements at corresponding indexes in the args.
@@ -5725,14 +5740,14 @@ module.exports =
 	    if (Array.isArray(arguments[0])) { return zipArray.apply(this, arguments); }
 	    var len = arguments.length, args = new Array(len);
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
-	
+
 	    var parent = this, resultSelector = args.pop();
 	    args.unshift(parent);
 	    return new AnonymousObservable(function (o) {
 	      var n = args.length,
 	        queues = arrayInitialize(n, emptyArrayFactory),
 	        isDone = arrayInitialize(n, falseFactory);
-	
+
 	      var subscriptions = new Array(n);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -5755,11 +5770,11 @@ module.exports =
 	          subscriptions[i] = sad;
 	        })(idx);
 	      }
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    }, parent);
 	  };
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever all of the observable sequences have produced an element at a corresponding index.
 	   * @param arguments Observable sources.
@@ -5772,10 +5787,10 @@ module.exports =
 	    var first = args.shift();
 	    return first.zip.apply(first, args);
 	  };
-	
+
 	  function falseFactory() { return false; }
 	  function arrayFactory() { return []; }
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by emitting a list with the elements of the observable sequences at corresponding indexes.
 	   * @param arguments Observable sources.
@@ -5794,7 +5809,7 @@ module.exports =
 	      var n = sources.length,
 	        queues = arrayInitialize(n, arrayFactory),
 	        isDone = arrayInitialize(n, falseFactory);
-	
+
 	      var subscriptions = new Array(n);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -5813,11 +5828,11 @@ module.exports =
 	          }));
 	        })(idx);
 	      }
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    });
 	  };
-	
+
 	  /**
 	   *  Hides the identity of an observable sequence.
 	   * @returns {Observable} An observable sequence that hides the identity of the source sequence.
@@ -5826,7 +5841,7 @@ module.exports =
 	    var source = this;
 	    return new AnonymousObservable(function (o) { return source.subscribe(o); }, source);
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into zero or more buffers which are produced based on element count information.
 	   *
@@ -5847,7 +5862,7 @@ module.exports =
 	      return x.length > 0;
 	    });
 	  };
-	
+
 	  /**
 	   * Dematerializes the explicit notification values of an observable sequence as implicit notifications.
 	   * @returns {Observable} An observable sequence exhibiting the behavior corresponding to the source sequence's notification values.
@@ -5858,7 +5873,7 @@ module.exports =
 	      return source.subscribe(function (x) { return x.accept(o); }, function(e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, this);
 	  };
-	
+
 	  /**
 	   *  Returns an observable sequence that contains only distinct contiguous elements according to the keySelector and the comparer.
 	   *
@@ -5893,7 +5908,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, this);
 	  };
-	
+
 	  var TapObservable = (function(__super__) {
 	    inherits(TapObservable,__super__);
 	    function TapObservable(source, observerOrOnNext, onError, onCompleted) {
@@ -5903,11 +5918,11 @@ module.exports =
 	        observerOrOnNext;
 	      __super__.call(this);
 	    }
-	
+
 	    TapObservable.prototype.subscribeCore = function(o) {
 	      return this.source.subscribe(new InnerObserver(o, this.t));
 	    };
-	
+
 	    function InnerObserver(o, t) {
 	      this.o = o;
 	      this.t = t;
@@ -5944,10 +5959,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return TapObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  *  Invokes an action for each element in the observable sequence and invokes an action upon graceful or exceptional termination of the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -5959,7 +5974,7 @@ module.exports =
 	  observableProto['do'] = observableProto.tap = observableProto.doAction = function (observerOrOnNext, onError, onCompleted) {
 	    return new TapObservable(this, observerOrOnNext, onError, onCompleted);
 	  };
-	
+
 	  /**
 	  *  Invokes an action for each element in the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -5970,7 +5985,7 @@ module.exports =
 	  observableProto.doOnNext = observableProto.tapOnNext = function (onNext, thisArg) {
 	    return this.tap(typeof thisArg !== 'undefined' ? function (x) { onNext.call(thisArg, x); } : onNext);
 	  };
-	
+
 	  /**
 	  *  Invokes an action upon exceptional termination of the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -5981,7 +5996,7 @@ module.exports =
 	  observableProto.doOnError = observableProto.tapOnError = function (onError, thisArg) {
 	    return this.tap(noop, typeof thisArg !== 'undefined' ? function (e) { onError.call(thisArg, e); } : onError);
 	  };
-	
+
 	  /**
 	  *  Invokes an action upon graceful termination of the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -5992,7 +6007,7 @@ module.exports =
 	  observableProto.doOnCompleted = observableProto.tapOnCompleted = function (onCompleted, thisArg) {
 	    return this.tap(noop, null, typeof thisArg !== 'undefined' ? function () { onCompleted.call(thisArg); } : onCompleted);
 	  };
-	
+
 	  /**
 	   *  Invokes a specified action after the source observable sequence terminates gracefully or exceptionally.
 	   * @param {Function} finallyAction Action to invoke after the source observable sequence terminates.
@@ -6019,7 +6034,7 @@ module.exports =
 	      });
 	    }, this);
 	  };
-	
+
 	  /**
 	   * @deprecated use #finally or #ensure instead.
 	   */
@@ -6027,19 +6042,19 @@ module.exports =
 	    //deprecate('finallyAction', 'finally or ensure');
 	    return this.ensure(action);
 	  };
-	
+
 	  var IgnoreElementsObservable = (function(__super__) {
 	    inherits(IgnoreElementsObservable, __super__);
-	
+
 	    function IgnoreElementsObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    IgnoreElementsObservable.prototype.subscribeCore = function (o) {
 	      return this.source.subscribe(new InnerObserver(o));
 	    };
-	
+
 	    function InnerObserver(o) {
 	      this.o = o;
 	      this.isStopped = false;
@@ -6064,13 +6079,13 @@ module.exports =
 	        this.observer.onError(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    return IgnoreElementsObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Ignores all elements in an observable sequence leaving only the termination messages.
 	   * @returns {Observable} An empty observable sequence that signals termination, successful or exceptional, of the source sequence.
@@ -6078,7 +6093,7 @@ module.exports =
 	  observableProto.ignoreElements = function () {
 	    return new IgnoreElementsObservable(this);
 	  };
-	
+
 	  /**
 	   *  Materializes the implicit notifications of an observable sequence as explicit notification values.
 	   * @returns {Observable} An observable sequence containing the materialized notification values from the source sequence.
@@ -6097,7 +6112,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Repeats the observable sequence a specified number of times. If the repeat count is not specified, the sequence repeats indefinitely.
 	   * @param {Number} [repeatCount]  Number of times to repeat the sequence. If not provided, repeats the sequence indefinitely.
@@ -6106,7 +6121,7 @@ module.exports =
 	  observableProto.repeat = function (repeatCount) {
 	    return enumerableRepeat(this, repeatCount).concat();
 	  };
-	
+
 	  /**
 	   *  Repeats the source observable sequence the specified number of times or until it successfully terminates. If the retry count is not specified, it retries indefinitely.
 	   *  Note if you encounter an error and want it to retry once, then you must use .retry(2);
@@ -6120,7 +6135,7 @@ module.exports =
 	  observableProto.retry = function (retryCount) {
 	    return enumerableRepeat(this, retryCount).catchError();
 	  };
-	
+
 	  /**
 	   *  Repeats the source observable sequence upon error each time the notifier emits or until it successfully terminates. 
 	   *  if the notifier completes, the observable sequence completes.
@@ -6143,14 +6158,14 @@ module.exports =
 	      this.seed = seed;
 	      __super__.call(this);
 	    }
-	
+
 	    ScanObservable.prototype.subscribeCore = function(observer) {
 	      return this.source.subscribe(new ScanObserver(observer,this));
 	    };
-	
+
 	    return ScanObservable;
 	  }(ObservableBase));
-	
+
 	  function ScanObserver(observer, parent) {
 	    this.observer = observer;
 	    this.accumulator = parent.accumulator;
@@ -6198,7 +6213,7 @@ module.exports =
 	    }
 	    return false;
 	  };
-	
+
 	  /**
 	  *  Applies an accumulator function over an observable sequence and returns each intermediate result. The optional seed value is used as the initial accumulator value.
 	  *  For aggregation behavior with no intermediate results, see Observable.aggregate.
@@ -6217,7 +6232,7 @@ module.exports =
 	    }
 	    return new ScanObservable(this, accumulator, hasSeed, seed);
 	  };
-	
+
 	  /**
 	   *  Bypasses a specified number of elements at the end of an observable sequence.
 	   * @description
@@ -6237,7 +6252,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Prepends a sequence of values to an observable sequence with an optional scheduler and an argument list of values to prepend.
 	   *  @example
@@ -6257,7 +6272,7 @@ module.exports =
 	    for(var args = [], i = start, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
 	    return enumerableOf([observableFromArray(args, scheduler), this]).concat();
 	  };
-	
+
 	  /**
 	   *  Returns a specified number of contiguous elements from the end of an observable sequence.
 	   * @description
@@ -6280,7 +6295,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns an array with the specified number of contiguous elements from the end of an observable sequence.
 	   *
@@ -6303,7 +6318,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into zero or more windows which are produced based on element count information.
 	   *
@@ -6321,22 +6336,22 @@ module.exports =
 	    skip == null && (skip = count);
 	    +skip || (skip = 0);
 	    Math.abs(skip) === Infinity && (skip = 0);
-	
+
 	    if (skip <= 0) { throw new ArgumentOutOfRangeError(); }
 	    return new AnonymousObservable(function (observer) {
 	      var m = new SingleAssignmentDisposable(),
 	        refCountDisposable = new RefCountDisposable(m),
 	        n = 0,
 	        q = [];
-	
+
 	      function createWindow () {
 	        var s = new Subject();
 	        q.push(s);
 	        observer.onNext(addRef(s, refCountDisposable));
 	      }
-	
+
 	      createWindow();
-	
+
 	      m.setDisposable(source.subscribe(
 	        function (x) {
 	          for (var i = 0, len = q.length; i < len; i++) { q[i].onNext(x); }
@@ -6356,7 +6371,7 @@ module.exports =
 	      return refCountDisposable;
 	    }, source);
 	  };
-	
+
 	  function concatMap(source, selector, thisArg) {
 	    var selectorFunc = bindCallback(selector, thisArg, 3);
 	    return source.map(function (x, i) {
@@ -6366,7 +6381,7 @@ module.exports =
 	      return result;
 	    }).concatAll();
 	  }
-	
+
 	  /**
 	   *  One of the Following:
 	   *  Projects each element of an observable sequence to an observable sequence and merges the resulting observable sequences into one observable sequence.
@@ -6392,7 +6407,7 @@ module.exports =
 	        var selectorResult = selector(x, i);
 	        isPromise(selectorResult) && (selectorResult = observableFromPromise(selectorResult));
 	        (isArrayLike(selectorResult) || isIterable(selectorResult)) && (selectorResult = observableFrom(selectorResult));
-	
+
 	        return selectorResult.map(function (y, i2) {
 	          return resultSelector(x, y, i, i2);
 	        });
@@ -6402,7 +6417,7 @@ module.exports =
 	      concatMap(this, selector, thisArg) :
 	      concatMap(this, function () { return selector; });
 	  };
-	
+
 	  /**
 	   * Projects each notification of an observable sequence to an observable sequence and concats the resulting observable sequences into one observable sequence.
 	   * @param {Function} onNext A transform function to apply to each element; the second parameter of the function represents the index of the source element.
@@ -6456,7 +6471,7 @@ module.exports =
 	        });
 	    }, this).concatAll();
 	  };
-	
+
 	    /**
 	     *  Returns the elements of the specified sequence or the specified value in a singleton sequence if the sequence is empty.
 	     *
@@ -6483,7 +6498,7 @@ module.exports =
 	        });
 	      }, source);
 	    };
-	
+
 	  // Swap out for Array.findIndex
 	  function arrayIndexOfComparer(array, item, comparer) {
 	    for (var i = 0, len = array.length; i < len; i++) {
@@ -6491,7 +6506,7 @@ module.exports =
 	    }
 	    return -1;
 	  }
-	
+
 	  function HashSet(comparer) {
 	    this.comparer = comparer;
 	    this.set = [];
@@ -6501,7 +6516,7 @@ module.exports =
 	    retValue && this.set.push(value);
 	    return retValue;
 	  };
-	
+
 	  /**
 	   *  Returns an observable sequence that contains only distinct elements according to the keySelector and the comparer.
 	   *  Usage of this operator should be considered carefully due to the maintenance of an internal lookup structure which can grow large.
@@ -6521,7 +6536,7 @@ module.exports =
 	      var hashSet = new HashSet(comparer);
 	      return source.subscribe(function (x) {
 	        var key = x;
-	
+
 	        if (keySelector) {
 	          try {
 	            key = keySelector(x);
@@ -6535,10 +6550,10 @@ module.exports =
 	      function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, this);
 	  };
-	
+
 	  var MapObservable = (function (__super__) {
 	    inherits(MapObservable, __super__);
-	
+
 	    function MapObservable(source, selector, thisArg) {
 	      this.source = source;
 	      this.selector = bindCallback(selector, thisArg, 3);
@@ -6548,11 +6563,11 @@ module.exports =
 	    function innerMap(selector, self) {
 	      return function (x, i, o) { return selector.call(this, self.selector(x, i, o), i, o); }
 	    }
-	
+
 	    MapObservable.prototype.internalMap = function (selector, thisArg) {
 	      return new MapObservable(this.source, innerMap(selector, this), thisArg);
 	    };
-	
+
 	    MapObservable.prototype.subscribeCore = function (o) {
 	      return this.source.subscribe(new InnerObserver(o, this.selector, this));
 	    };
@@ -6589,11 +6604,11 @@ module.exports =
 	  
 	      return false;
 	    };
-	
+
 	    return MapObservable;
-	
+
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Projects each element of an observable sequence into a new form by incorporating the element's index.
 	  * @param {Function} selector A transform function to apply to each source element; the second parameter of the function represents the index of the source element.
@@ -6606,7 +6621,7 @@ module.exports =
 	      this.internalMap(selectorFn, thisArg) :
 	      new MapObservable(this, selectorFn, thisArg);
 	  };
-	
+
 	  /**
 	   * Retrieves the value of a specified nested property from all elements in
 	   * the Observable sequence.
@@ -6629,7 +6644,7 @@ module.exports =
 	      return currentProp;
 	    });
 	  };
-	
+
 	  /**
 	   * Projects each notification of an observable sequence to an observable sequence and merges the resulting observable sequences into one observable sequence.
 	   * @param {Function} onNext A transform function to apply to each element; the second parameter of the function represents the index of the source element.
@@ -6642,7 +6657,7 @@ module.exports =
 	    var source = this;
 	    return new AnonymousObservable(function (observer) {
 	      var index = 0;
-	
+
 	      return source.subscribe(
 	        function (x) {
 	          var result;
@@ -6681,7 +6696,7 @@ module.exports =
 	        });
 	    }, source).mergeAll();
 	  };
-	
+
 	  function flatMap(source, selector, thisArg) {
 	    var selectorFunc = bindCallback(selector, thisArg, 3);
 	    return source.map(function (x, i) {
@@ -6691,7 +6706,7 @@ module.exports =
 	      return result;
 	    }).mergeAll();
 	  }
-	
+
 	  /**
 	   *  One of the Following:
 	   *  Projects each element of an observable sequence to an observable sequence and merges the resulting observable sequences into one observable sequence.
@@ -6717,7 +6732,7 @@ module.exports =
 	        var selectorResult = selector(x, i);
 	        isPromise(selectorResult) && (selectorResult = observableFromPromise(selectorResult));
 	        (isArrayLike(selectorResult) || isIterable(selectorResult)) && (selectorResult = observableFrom(selectorResult));
-	
+
 	        return selectorResult.map(function (y, i2) {
 	          return resultSelector(x, y, i, i2);
 	        });
@@ -6727,7 +6742,7 @@ module.exports =
 	      flatMap(this, selector, thisArg) :
 	      flatMap(this, function () { return selector; });
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into a new sequence of observable sequences by incorporating the element's index and then
 	   *  transforms an observable sequence of observable sequences into an observable sequence producing values only from the most recent observable sequence.
@@ -6739,7 +6754,7 @@ module.exports =
 	  observableProto.selectSwitch = observableProto.flatMapLatest = observableProto.switchMap = function (selector, thisArg) {
 	    return this.select(selector, thisArg).switchLatest();
 	  };
-	
+
 	  var SkipObservable = (function(__super__) {
 	    inherits(SkipObservable, __super__);
 	    function SkipObservable(source, count) {
@@ -6822,7 +6837,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns a specified number of contiguous elements from the start of an observable sequence, using the specified scheduler for the edge case of take(0).
 	   *
@@ -6846,7 +6861,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns elements from an observable sequence as long as a specified condition is true.
 	   *  The element's index is used in the logic of the predicate function.
@@ -6876,16 +6891,16 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  var FilterObservable = (function (__super__) {
 	    inherits(FilterObservable, __super__);
-	
+
 	    function FilterObservable(source, predicate, thisArg) {
 	      this.source = source;
 	      this.predicate = bindCallback(predicate, thisArg, 3);
 	      __super__.call(this);
 	    }
-	
+
 	    FilterObservable.prototype.subscribeCore = function (o) {
 	      return this.source.subscribe(new InnerObserver(o, this.predicate, this));
 	    };
@@ -6893,7 +6908,7 @@ module.exports =
 	    function innerPredicate(predicate, self) {
 	      return function(x, i, o) { return self.predicate(x, i, o) && predicate.call(this, x, i, o); }
 	    }
-	
+
 	    FilterObservable.prototype.internalFilter = function(predicate, thisArg) {
 	      return new FilterObservable(this.source, innerPredicate(predicate, this), thisArg);
 	    };
@@ -6929,11 +6944,11 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return FilterObservable;
-	
+
 	  }(ObservableBase));
-	
+
 	  /**
 	  *  Filters the elements of an observable sequence based on a predicate by incorporating the element's index.
 	  * @param {Function} predicate A function to test each source element for a condition; the second parameter of the function represents the index of the source element.
@@ -6944,7 +6959,7 @@ module.exports =
 	    return this instanceof FilterObservable ? this.internalFilter(predicate, thisArg) :
 	      new FilterObservable(this, predicate, thisArg);
 	  };
-	
+
 	  /**
 	   * Executes a transducer to transform the observable sequence
 	   * @param {Transducer} transducer A transducer to execute
@@ -6952,7 +6967,7 @@ module.exports =
 	   */
 	  observableProto.transduce = function(transducer) {
 	    var source = this;
-	
+
 	    function transformForObserver(o) {
 	      return {
 	        '@@transducer/init': function() {
@@ -6966,7 +6981,7 @@ module.exports =
 	        }
 	      };
 	    }
-	
+
 	    return new AnonymousObservable(function(o) {
 	      var xform = transducer(transformForObserver(o));
 	      return source.subscribe(
@@ -6982,32 +6997,32 @@ module.exports =
 	      );
 	    }, source);
 	  };
-	
+
 	  var AnonymousObservable = Rx.AnonymousObservable = (function (__super__) {
 	    inherits(AnonymousObservable, __super__);
-	
+
 	    // Fix subscriber to check for undefined or function returned to decorate as Disposable
 	    function fixSubscriber(subscriber) {
 	      return subscriber && isFunction(subscriber.dispose) ? subscriber :
 	        isFunction(subscriber) ? disposableCreate(subscriber) : disposableEmpty;
 	    }
-	
+
 	    function setDisposable(s, state) {
 	      var ado = state[0], subscribe = state[1];
 	      var sub = tryCatch(subscribe)(ado);
-	
+
 	      if (sub === errorObj) {
 	        if(!ado.fail(errorObj.e)) { return thrower(errorObj.e); }
 	      }
 	      ado.setDisposable(fixSubscriber(sub));
 	    }
-	
+
 	    function AnonymousObservable(subscribe, parent) {
 	      this.source = parent;
-	
+
 	      function s(observer) {
 	        var ado = new AutoDetachObserver(observer), state = [ado, subscribe];
-	
+
 	        if (currentThreadScheduler.scheduleRequired()) {
 	          currentThreadScheduler.scheduleWithState(state, setDisposable);
 	        } else {
@@ -7015,25 +7030,25 @@ module.exports =
 	        }
 	        return ado;
 	      }
-	
+
 	      __super__.call(this, s);
 	    }
-	
+
 	    return AnonymousObservable;
-	
+
 	  }(Observable));
-	
+
 	  var AutoDetachObserver = (function (__super__) {
 	    inherits(AutoDetachObserver, __super__);
-	
+
 	    function AutoDetachObserver(observer) {
 	      __super__.call(this);
 	      this.observer = observer;
 	      this.m = new SingleAssignmentDisposable();
 	    }
-	
+
 	    var AutoDetachObserverPrototype = AutoDetachObserver.prototype;
-	
+
 	    AutoDetachObserverPrototype.next = function (value) {
 	      var result = tryCatch(this.observer.onNext).call(this.observer, value);
 	      if (result === errorObj) {
@@ -7041,35 +7056,35 @@ module.exports =
 	        thrower(result.e);
 	      }
 	    };
-	
+
 	    AutoDetachObserverPrototype.error = function (err) {
 	      var result = tryCatch(this.observer.onError).call(this.observer, err);
 	      this.dispose();
 	      result === errorObj && thrower(result.e);
 	    };
-	
+
 	    AutoDetachObserverPrototype.completed = function () {
 	      var result = tryCatch(this.observer.onCompleted).call(this.observer);
 	      this.dispose();
 	      result === errorObj && thrower(result.e);
 	    };
-	
+
 	    AutoDetachObserverPrototype.setDisposable = function (value) { this.m.setDisposable(value); };
 	    AutoDetachObserverPrototype.getDisposable = function () { return this.m.getDisposable(); };
-	
+
 	    AutoDetachObserverPrototype.dispose = function () {
 	      __super__.prototype.dispose.call(this);
 	      this.m.dispose();
 	    };
-	
+
 	    return AutoDetachObserver;
 	  }(AbstractObserver));
-	
+
 	  var InnerSubscription = function (subject, observer) {
 	    this.subject = subject;
 	    this.observer = observer;
 	  };
-	
+
 	  InnerSubscription.prototype.dispose = function () {
 	    if (!this.subject.isDisposed && this.observer !== null) {
 	      var idx = this.subject.observers.indexOf(this.observer);
@@ -7077,7 +7092,7 @@ module.exports =
 	      this.observer = null;
 	    }
 	  };
-	
+
 	  /**
 	   *  Represents an object that is both an observable sequence as well as an observer.
 	   *  Each notification is broadcasted to all subscribed observers.
@@ -7096,9 +7111,9 @@ module.exports =
 	      observer.onCompleted();
 	      return disposableEmpty;
 	    }
-	
+
 	    inherits(Subject, __super__);
-	
+
 	    /**
 	     * Creates a subject.
 	     */
@@ -7109,7 +7124,7 @@ module.exports =
 	      this.observers = [];
 	      this.hasError = false;
 	    }
-	
+
 	    addProperties(Subject.prototype, Observer.prototype, {
 	      /**
 	       * Indicates whether the subject has observers subscribed to it.
@@ -7126,7 +7141,7 @@ module.exports =
 	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onCompleted();
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -7143,7 +7158,7 @@ module.exports =
 	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onError(error);
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -7167,7 +7182,7 @@ module.exports =
 	        this.observers = null;
 	      }
 	    });
-	
+
 	    /**
 	     * Creates a subject from the specified observer and observable.
 	     * @param {Observer} observer The observer used to send messages to the subject.
@@ -7177,24 +7192,24 @@ module.exports =
 	    Subject.create = function (observer, observable) {
 	      return new AnonymousSubject(observer, observable);
 	    };
-	
+
 	    return Subject;
 	  }(Observable));
-	
+
 	  /**
 	   *  Represents the result of an asynchronous operation.
 	   *  The last value before the OnCompleted notification, or the error received through OnError, is sent to all subscribed observers.
 	   */
 	  var AsyncSubject = Rx.AsyncSubject = (function (__super__) {
-	
+
 	    function subscribe(observer) {
 	      checkDisposed(this);
-	
+
 	      if (!this.isStopped) {
 	        this.observers.push(observer);
 	        return new InnerSubscription(this, observer);
 	      }
-	
+
 	      if (this.hasError) {
 	        observer.onError(this.error);
 	      } else if (this.hasValue) {
@@ -7203,26 +7218,26 @@ module.exports =
 	      } else {
 	        observer.onCompleted();
 	      }
-	
+
 	      return disposableEmpty;
 	    }
-	
+
 	    inherits(AsyncSubject, __super__);
-	
+
 	    /**
 	     * Creates a subject that can only receive one value and that value is cached for all future observations.
 	     * @constructor
 	     */
 	    function AsyncSubject() {
 	      __super__.call(this, subscribe);
-	
+
 	      this.isDisposed = false;
 	      this.isStopped = false;
 	      this.hasValue = false;
 	      this.observers = [];
 	      this.hasError = false;
 	    }
-	
+
 	    addProperties(AsyncSubject.prototype, Observer, {
 	      /**
 	       * Indicates whether the subject has observers subscribed to it.
@@ -7241,7 +7256,7 @@ module.exports =
 	        if (!this.isStopped) {
 	          this.isStopped = true;
 	          var os = cloneArray(this.observers), len = os.length;
-	
+
 	          if (this.hasValue) {
 	            for (i = 0; i < len; i++) {
 	              var o = os[i];
@@ -7253,7 +7268,7 @@ module.exports =
 	              os[i].onCompleted();
 	            }
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -7267,11 +7282,11 @@ module.exports =
 	          this.isStopped = true;
 	          this.hasError = true;
 	          this.error = error;
-	
+
 	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onError(error);
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -7295,23 +7310,23 @@ module.exports =
 	        this.value = null;
 	      }
 	    });
-	
+
 	    return AsyncSubject;
 	  }(Observable));
-	
+
 	  var AnonymousSubject = Rx.AnonymousSubject = (function (__super__) {
 	    inherits(AnonymousSubject, __super__);
-	
+
 	    function subscribe(observer) {
 	      return this.observable.subscribe(observer);
 	    }
-	
+
 	    function AnonymousSubject(observer, observable) {
 	      this.observer = observer;
 	      this.observable = observable;
 	      __super__.call(this, subscribe);
 	    }
-	
+
 	    addProperties(AnonymousSubject.prototype, Observer.prototype, {
 	      onCompleted: function () {
 	        this.observer.onCompleted();
@@ -7323,13 +7338,13 @@ module.exports =
 	        this.observer.onNext(value);
 	      }
 	    });
-	
+
 	    return AnonymousSubject;
 	  }(Observable));
-	
+
 	  if (true) {
 	    root.Rx = Rx;
-	
+
 	    !(__WEBPACK_AMD_DEFINE_RESULT__ = function() {
 	      return Rx;
 	    }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
@@ -7344,12 +7359,12 @@ module.exports =
 	    // in a browser or Rhino
 	    root.Rx = Rx;
 	  }
-	
+
 	  // All code before this point will be filtered from stack traces.
 	  var rEndingLine = captureLine();
-	
+
 	}.call(this));
-	
+
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(19)(module), (function() { return this; }()), __webpack_require__(20)))
 
 /***/ },
@@ -7373,13 +7388,13 @@ module.exports =
 /***/ function(module, exports) {
 
 	// shim for using process in browser
-	
+
 	var process = module.exports = {};
 	var queue = [];
 	var draining = false;
 	var currentQueue;
 	var queueIndex = -1;
-	
+
 	function cleanUpNextTick() {
 	    draining = false;
 	    if (currentQueue.length) {
@@ -7391,14 +7406,14 @@ module.exports =
 	        drainQueue();
 	    }
 	}
-	
+
 	function drainQueue() {
 	    if (draining) {
 	        return;
 	    }
 	    var timeout = setTimeout(cleanUpNextTick);
 	    draining = true;
-	
+
 	    var len = queue.length;
 	    while(len) {
 	        currentQueue = queue;
@@ -7415,7 +7430,7 @@ module.exports =
 	    draining = false;
 	    clearTimeout(timeout);
 	}
-	
+
 	process.nextTick = function (fun) {
 	    var args = new Array(arguments.length - 1);
 	    if (arguments.length > 1) {
@@ -7428,7 +7443,7 @@ module.exports =
 	        setTimeout(drainQueue, 0);
 	    }
 	};
-	
+
 	// v8 likes predictible objects
 	function Item(fun, array) {
 	    this.fun = fun;
@@ -7443,9 +7458,9 @@ module.exports =
 	process.argv = [];
 	process.version = ''; // empty string to avoid regexp issues
 	process.versions = {};
-	
+
 	function noop() {}
-	
+
 	process.on = noop;
 	process.addListener = noop;
 	process.once = noop;
@@ -7453,11 +7468,11 @@ module.exports =
 	process.removeListener = noop;
 	process.removeAllListeners = noop;
 	process.emit = noop;
-	
+
 	process.binding = function (name) {
 	    throw new Error('process.binding is not supported');
 	};
-	
+
 	process.cwd = function () { return '/' };
 	process.chdir = function (dir) {
 	    throw new Error('process.chdir is not supported');
@@ -7472,20 +7487,20 @@ module.exports =
 	function ModelDataSourceAdapter(model) {
 	    this._model = model._materialize().boxValues().treatErrorsAsValues();
 	}
-	
+
 	ModelDataSourceAdapter.prototype.get = function get(pathSets) {
 	    return this._model.get.apply(this._model, pathSets)._toJSONG();
 	};
-	
+
 	ModelDataSourceAdapter.prototype.set = function set(jsongResponse) {
 	    return this._model.set(jsongResponse)._toJSONG();
 	};
-	
+
 	ModelDataSourceAdapter.prototype.call = function call(path, args, suffixes, paths) {
 	    var params = [path, args, suffixes].concat(paths);
 	    return this._model.call.apply(this._model, params)._toJSONG();
 	};
-	
+
 	module.exports = ModelDataSourceAdapter;
 
 
@@ -7495,20 +7510,20 @@ module.exports =
 
 	var RequestQueue = __webpack_require__(23);
 	var RequestQueueV2 = __webpack_require__(104);
-	
+
 	function RequestQueueRx(model, scheduler) {
 	    this.model = model;
 	    this.scheduler = scheduler;
 	    this.requests = this._requests = [];
 	}
-	
+
 	// RX MONKEY PATCH
 	RequestQueueRx.prototype.get = RequestQueueV2.prototype.get;
 	RequestQueueRx.prototype.removeRequest = RequestQueueV2.prototype.removeRequest;
-	
+
 	RequestQueueRx.prototype.set = RequestQueue.prototype.set;
 	RequestQueueRx.prototype.call = RequestQueue.prototype.call;
-	
+
 	module.exports = RequestQueueRx;
 
 
@@ -7518,12 +7533,12 @@ module.exports =
 
 	
 	var SetRequest = __webpack_require__(24);
-	
+
 	var prefix = __webpack_require__(39);
 	var getType = __webpack_require__(103);
 	var isObject = __webpack_require__(16);
 	var falcorPathUtils = __webpack_require__(27);
-	
+
 	/* eslint-disable no-labels block-scoped-var */
 	function RequestQueue(model, scheduler) {
 	    this.total = 0;
@@ -7531,12 +7546,12 @@ module.exports =
 	    this.requests = [];
 	    this.scheduler = scheduler;
 	}
-	
+
 	RequestQueue.prototype.set = function setRequest(jsonGraphEnvelope) {
 	    jsonGraphEnvelope.paths = falcorPathUtils.collapse(jsonGraphEnvelope.paths);
 	    return SetRequest.create(this.model, jsonGraphEnvelope);
 	};
-	
+
 	RequestQueue.prototype._remove = function removeRequest(request) {
 	    var requests = this.requests;
 	    var index = requests.indexOf(request);
@@ -7544,25 +7559,25 @@ module.exports =
 	        requests.splice(index, 1);
 	    }
 	};
-	
+
 	RequestQueue.prototype.distributePaths = function distributePathsAcrossRequests(paths, requests, RequestType) {
-	
+
 	    var model = this.model;
 	    var pathsIndex = -1;
 	    var pathsCount = paths.length;
-	
+
 	    var requestIndex = -1;
 	    var requestCount = requests.length;
 	    var participatingRequests = [];
 	    var pendingRequest;
 	    var request;
-	
+
 	    insertPath: while (++pathsIndex < pathsCount) {
-	
+
 	        var path = paths[pathsIndex];
-	
+
 	        requestIndex = -1;
-	
+
 	        while (++requestIndex < requestCount) {
 	            request = requests[requestIndex];
 	            if (request.insertPath(path, request.pending)) {
@@ -7570,59 +7585,59 @@ module.exports =
 	                continue insertPath;
 	            }
 	        }
-	
+
 	        if (!pendingRequest) {
 	            pendingRequest = RequestType.create(this, model, this.total++);
 	            requests[requestIndex] = pendingRequest;
 	            participatingRequests[requestCount++] = pendingRequest;
 	        }
-	
+
 	        pendingRequest.insertPath(path, false);
 	    }
-	
+
 	    var pathRequests = [];
 	    var pathRequestsIndex = -1;
-	
+
 	    requestIndex = -1;
-	
+
 	    while (++requestIndex < requestCount) {
 	        request = participatingRequests[requestIndex];
 	        if (request != null) {
 	            pathRequests[++pathRequestsIndex] = request;
 	        }
 	    }
-	
+
 	    return pathRequests;
 	};
-	
+
 	RequestQueue.prototype.mergeJSONGraphs = function mergeJSONGraphs(aggregate, response) {
-	
+
 	    var depth = 0;
 	    var contexts = [];
 	    var messages = [];
 	    var keystack = [];
 	    var latestIndex = aggregate.index;
 	    var responseIndex = response.index;
-	
+
 	    aggregate.index = Math.max(latestIndex, responseIndex);
-	
+
 	    contexts[-1] = aggregate.jsonGraph || {};
 	    messages[-1] = response.jsonGraph || {};
-	
+
 	    recursing: while (depth > -1) {
-	
+
 	        var context = contexts[depth - 1];
 	        var message = messages[depth - 1];
 	        var keys = keystack[depth - 1] || (keystack[depth - 1] = Object.keys(message));
-	
+
 	        while (keys.length > 0) {
-	
+
 	            var key = keys.pop();
-	
+
 	            if (key[0] === prefix) {
 	                continue;
 	            }
-	
+
 	            if (context.hasOwnProperty(key)) {
 	                var node = context[key];
 	                var nodeType = getType(node);
@@ -7640,14 +7655,14 @@ module.exports =
 	                context[key] = message[key];
 	            }
 	        }
-	
+
 	        depth -= 1;
 	    }
-	
+
 	    return aggregate;
 	};
 	/* eslint-enable */
-	
+
 	module.exports = RequestQueue;
 
 
@@ -7657,30 +7672,30 @@ module.exports =
 
 	var Rx = __webpack_require__(18);
 	var Observer = Rx.Observer;
-	
+
 	var Request = __webpack_require__(25);
-	
+
 	var arrayMap = __webpack_require__(36);
-	
+
 	var setJSONGraphs = __webpack_require__(37);
 	var setPathValues = __webpack_require__(91);
-	
+
 	var emptyArray = new Array(0);
-	
+
 	function SetRequest() {
 	    Request.call(this);
 	}
-	
+
 	SetRequest.create = function create(model, jsonGraphEnvelope) {
 	    var request = new SetRequest();
 	    request.model = model;
 	    request.jsonGraphEnvelope = jsonGraphEnvelope;
 	    return request;
 	};
-	
+
 	SetRequest.prototype = Object.create(Request.prototype);
 	SetRequest.prototype.constructor = SetRequest;
-	
+
 	SetRequest.prototype.method = "set";
 	SetRequest.prototype.insertPath = function() {
 	    return false;
@@ -7688,49 +7703,49 @@ module.exports =
 	SetRequest.prototype.removePath = function() {
 	    return 0;
 	};
-	
+
 	SetRequest.prototype.getSourceArgs = function getSourceArgs() {
 	    return this.jsonGraphEnvelope;
 	};
-	
+
 	SetRequest.prototype.getSourceObserver = function getSourceObserver(observer) {
-	
+
 	    var model = this.model;
 	    var bound = model._path;
 	    var paths = this.jsonGraphEnvelope.paths;
 	    var modelRoot = model._root;
 	    var errorSelector = modelRoot.errorSelector;
 	    var comparator = modelRoot.comparator;
-	
+
 	    return Request.prototype.getSourceObserver.call(this, Observer.create(
 	        function onNext(jsonGraphEnvelope) {
-	
+
 	            model._path = emptyArray;
-	
+
 	            var successfulPaths = setJSONGraphs(model, [{
 	                paths: paths,
 	                jsonGraph: jsonGraphEnvelope.jsonGraph
 	            }], null, errorSelector, comparator);
-	
+
 	            jsonGraphEnvelope.paths = successfulPaths[1];
-	
+
 	            model._path = bound;
-	
+
 	            observer.onNext(jsonGraphEnvelope);
 	        },
 	        function onError(error) {
-	
+
 	            model._path = emptyArray;
-	
+
 	            setPathValues(model, arrayMap(paths, function(path) {
 	                return {
 	                    path: path,
 	                    value: error
 	                };
 	            }), null, errorSelector, comparator);
-	
+
 	            model._path = bound;
-	
+
 	            observer.onError(error);
 	        },
 	        function onCompleted() {
@@ -7738,7 +7753,7 @@ module.exports =
 	        }
 	    ));
 	};
-	
+
 	module.exports = SetRequest;
 
 
@@ -7753,17 +7768,17 @@ module.exports =
 	var SerialDisposable = Rx.SerialDisposable;
 	var CompositeDisposable = Rx.CompositeDisposable;
 	var InvalidSourceError = __webpack_require__(26);
-	
+
 	var falcorPathUtils = __webpack_require__(27);
 	var iterateKeySet = falcorPathUtils.iterateKeySet;
-	
+
 	function Request() {
 	    this.length = 0;
 	    this.pending = false;
 	    this.pathmaps = [];
 	    Observable.call(this, this._subscribe);
 	}
-	
+
 	Request.create = function create(queue, model, index) {
 	    var request = new this();
 	    request.queue = queue;
@@ -7771,29 +7786,29 @@ module.exports =
 	    request.index = index;
 	    return request;
 	};
-	
+
 	Request.prototype = Object.create(Observable.prototype);
-	
+
 	Request.prototype.constructor = Request;
-	
+
 	Request.prototype.insertPath = function insertPathIntoRequest(path, union, parentArg, indexArg, countArg) {
-	
+
 	    var index = indexArg || 0;
 	    var count = countArg || path.length - 1;
 	    var parent = parentArg || this.pathmaps[count + 1] || (this.pathmaps[count + 1] = Object.create(null));
-	
+
 	    if (parent === void 0 || parent === null) {
 	        return false;
 	    }
-	
+
 	    var key, node;
 	    var keySet = path[index];
 	    var iteratorNote = {};
 	    key = iterateKeySet(keySet, iteratorNote);
-	
+
 	    // Determines if the key needs to go through permutation or not.
 	    // All object based keys require this.
-	
+
 	    do {
 	        node = parent[key];
 	        if (index < count) {
@@ -7810,30 +7825,30 @@ module.exports =
 	            parent[key] = (node || 0) + 1;
 	            this.length += 1;
 	        }
-	
+
 	        if (!iteratorNote.done) {
 	            key = iterateKeySet(keySet, iteratorNote);
 	        }
 	    } while (!iteratorNote.done);
-	
+
 	    return true;
 	};
-	
+
 	/* eslint-disable guard-for-in */
 	Request.prototype.removePath = function removePathFromRequest(path, parentArg, indexArg, countArg) {
-	
+
 	    var index = indexArg || 0;
 	    var count = countArg || path.length - 1;
 	    var parent = parentArg || this.pathmaps[count + 1];
-	
+
 	    if (parent === void 0 || parent === null) {
 	        return true;
 	    }
-	
+
 	    var key, node, deleted = 0;
 	    var keySet = path[index];
 	    var iteratorNote = {};
-	
+
 	    key = iterateKeySet(keySet, iteratorNote);
 	    do {
 	        node = parent[key];
@@ -7856,16 +7871,16 @@ module.exports =
 	            deleted += 1;
 	            this.length -= 1;
 	        }
-	
+
 	        if (!iteratorNote.done) {
 	            key = iterateKeySet(keySet, iteratorNote);
 	        }
 	    } while (!iteratorNote.done);
-	
+
 	    return deleted;
 	};
 	/* eslint-enable */
-	
+
 	Request.prototype.getSourceObserver = function getSourceObserver(observer) {
 	    var request = this;
 	    return Observer.create(
@@ -7884,14 +7899,14 @@ module.exports =
 	            observer.onCompleted();
 	        });
 	};
-	
+
 	Request.prototype._subscribe = function _subscribe(observer) {
-	
+
 	    var request = this;
 	    var queue = this.queue;
-	
+
 	    request.pending = true;
-	
+
 	    var isDisposed = false;
 	    var sourceSubscription = new SerialDisposable();
 	    var queueDisposable = Disposable.create(function() {
@@ -7902,23 +7917,23 @@ module.exports =
 	            }
 	        }
 	    });
-	
+
 	    var disposables = new CompositeDisposable(sourceSubscription, queueDisposable);
-	
+
 	    try {
 	        sourceSubscription.setDisposable(
 	            this.model._source[this.method](this.getSourceArgs())
 	            .subscribe(this.getSourceObserver(observer)));
 	    } catch (e) {
-	
+
 	        // We need a way to communicate out to the rest of the world that
 	        // this error needs to continue its propagation.
 	        throw new InvalidSourceError(e);
 	    }
-	
+
 	    return disposables;
 	};
-	
+
 	module.exports = Request;
 
 
@@ -7939,7 +7954,7 @@ module.exports =
 	    this.stack = (new Error()).stack;
 	    this.innerError = error;
 	}
-	
+
 	// instanceof will be an error, but stack will be correct because its defined
 	// in the constructor.
 	InvalidSourceError.prototype = new Error();
@@ -7947,7 +7962,7 @@ module.exports =
 	InvalidSourceError.is = function(e) {
 	    return e && e.name === NAME;
 	};
-	
+
 	module.exports = InvalidSourceError;
 
 
@@ -7972,7 +7987,7 @@ module.exports =
 /***/ function(module, exports) {
 
 	var isArray = Array.isArray;
-	
+
 	/**
 	 * Takes in a keySet and a note attempts to iterate over it.
 	 * If the value is a primitive, the key will be returned and the note will
@@ -7993,51 +8008,51 @@ module.exports =
 	    if (note.isArray === undefined) {
 	        initializeNote(keySet, note);
 	    }
-	
+
 	    // Array iteration
 	    if (note.isArray) {
 	        var nextValue;
-	
+
 	        // Cycle through the array and pluck out the next value.
 	        do {
 	            if (note.loaded && note.rangeOffset > note.to) {
 	                ++note.arrayOffset;
 	                note.loaded = false;
 	            }
-	
+
 	            var idx = note.arrayOffset, length = keySet.length;
 	            if (idx >= length) {
 	                note.done = true;
 	                break;
 	            }
-	
+
 	            var el = keySet[note.arrayOffset];
 	            var type = typeof el;
-	
+
 	            // Inner range iteration.
 	            if (type === 'object') {
 	                if (!note.loaded) {
 	                    initializeRange(el, note);
 	                }
-	
+
 	                // Empty to/from
 	                if (note.empty) {
 	                    continue;
 	                }
-	
+
 	                nextValue = note.rangeOffset++;
 	            }
-	
+
 	            // Primitive iteration in array.
 	            else {
 	                ++note.arrayOffset;
 	                nextValue = el;
 	            }
 	        } while (nextValue === undefined);
-	
+
 	        return nextValue;
 	    }
-	
+
 	    // Range iteration
 	    else if (note.isObject) {
 	        if (!note.loaded) {
@@ -8047,17 +8062,17 @@ module.exports =
 	            note.done = true;
 	            return undefined;
 	        }
-	
+
 	        return note.rangeOffset++;
 	    }
-	
+
 	    // Primitive value
 	    else {
 	        note.done = true;
 	        return keySet;
 	    }
 	};
-	
+
 	function initializeRange(key, memo) {
 	    var from = memo.from = key.from || 0;
 	    var to = memo.to = key.to ||
@@ -8069,7 +8084,7 @@ module.exports =
 	        memo.empty = true;
 	    }
 	}
-	
+
 	function initializeNote(key, note) {
 	    note.done = false;
 	    var isObject = note.isObject = !!(key && typeof key === 'object');
@@ -8084,7 +8099,7 @@ module.exports =
 
 	var iterateKeySet = __webpack_require__(28);
 	var isArray = Array.isArray;
-	
+
 	/**
 	 * @param {Array} paths -
 	 * @returns {Object} -
@@ -8095,18 +8110,18 @@ module.exports =
 	        return acc;
 	    }, {});
 	};
-	
+
 	function innerToTree(seed, path, depth) {
-	
+
 	    var keySet = path[depth];
 	    var iteratorNote = {};
 	    var key;
 	    var nextDepth = depth + 1;
-	
+
 	    key = iterateKeySet(keySet, iteratorNote);
-	
+
 	    do {
-	
+
 	        var next = seed[key];
 	        if (!next) {
 	            if (nextDepth === path.length) {
@@ -8115,31 +8130,31 @@ module.exports =
 	                next = seed[key] = {};
 	            }
 	        }
-	
+
 	        if (nextDepth < path.length) {
 	            innerToTree(next, path, nextDepth);
 	        }
-	
+
 	        if (!iteratorNote.done) {
 	            key = iterateKeySet(keySet, iteratorNote);
 	        }
 	    } while (!iteratorNote.done);
 	}
-	
+
 
 
 /***/ },
 /* 30 */
 /***/ function(module, exports) {
 
-
+	
 
 /***/ },
 /* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var hasIntersection = __webpack_require__(32);
-	
+
 	/**
 	 * Compares the paths passed in with the tree.  Any of the paths that are in
 	 * the tree will be stripped from the paths.
@@ -8155,7 +8170,7 @@ module.exports =
 	module.exports = function pathsComplementFromTree(paths, tree) {
 	    var out = [];
 	    var outLength = -1;
-	
+
 	    for (var i = 0, len = paths.length; i < len; ++i) {
 	        // If this does not intersect then add it to the output.
 	        if (!hasIntersection(tree, paths[i], 0)) {
@@ -8164,7 +8179,7 @@ module.exports =
 	    }
 	    return out;
 	};
-	
+
 
 
 /***/ },
@@ -8172,7 +8187,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var iterateKeySet = __webpack_require__(28);
-	
+
 	/**
 	 * Tests to see if the intersection should be stripped from the
 	 * total paths.  The only way this happens currently is if the entirety
@@ -8182,40 +8197,40 @@ module.exports =
 	module.exports = function hasIntersection(tree, path, depth) {
 	    var current = tree;
 	    var intersects = true;
-	
+
 	    // Continue iteratively going down a path until a complex key is
 	    // encountered, then recurse.
 	    for (;intersects && depth < path.length; ++depth) {
 	        var key = path[depth];
 	        var keyType = typeof key;
-	
+
 	        // We have to iterate key set
 	        if (key && keyType === 'object') {
 	            var note = {};
 	            var innerKey = iterateKeySet(key, note);
 	            var nextDepth = depth + 1;
-	
+
 	            // Loop through the innerKeys setting the intersects flag
 	            // to each result.  Break out on false.
 	            do {
 	                var next = current[innerKey];
 	                intersects = next !== undefined;
-	
+
 	                if (intersects) {
 	                    intersects = hasIntersection(next, path, nextDepth);
 	                }
 	                innerKey = iterateKeySet(key, note);
 	            } while (intersects && !note.done);
-	
+
 	            // Since we recursed, we shall not pass any further!
 	            break;
 	        }
-	
+
 	        // Its a simple key, just move forward with the testing.
 	        current = current[key];
 	        intersects = current !== undefined;
 	    }
-	
+
 	    return intersects;
 	};
 
@@ -8225,7 +8240,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var hasIntersection = __webpack_require__(32);
-	
+
 	/**
 	 * Compares the paths passed in with the tree.  Any of the paths that are in
 	 * the tree will be stripped from the paths.
@@ -8241,7 +8256,7 @@ module.exports =
 	module.exports = function pathsComplementFromLengthTree(paths, tree) {
 	    var out = [];
 	    var outLength = -1;
-	
+
 	    for (var i = 0, len = paths.length; i < len; ++i) {
 	        // If this does not intersect then add it to the output.
 	        var path = paths[i];
@@ -8251,7 +8266,7 @@ module.exports =
 	    }
 	    return out;
 	};
-	
+
 
 
 /***/ },
@@ -8260,7 +8275,7 @@ module.exports =
 
 	var isArray = Array.isArray;
 	var typeOfObject = "object";
-	
+
 	/* jshint forin: false */
 	module.exports = function toPaths(lengths) {
 	    var pathmap;
@@ -8278,37 +8293,37 @@ module.exports =
 	    }
 	    return allPaths;
 	};
-	
+
 	function isObject(value) {
 	    return value !== null && typeof value === typeOfObject;
 	}
-	
+
 	function collapsePathMap(pathmap, depth, length) {
-	
+
 	    var key;
 	    var code = getHashCode(String(depth));
 	    var subs = Object.create(null);
-	
+
 	    var codes = [];
 	    var codesIndex = -1;
 	    var codesCount = 0;
-	
+
 	    var pathsets = [];
 	    var pathsetsCount = 0;
-	
+
 	    var subPath, subCode,
 	        subKeys, subKeysIndex, subKeysCount,
 	        subSets, subSetsIndex, subSetsCount,
 	        pathset, pathsetIndex, pathsetCount,
 	        firstSubKey, pathsetClone;
-	
+
 	    subKeys = [];
 	    subKeysIndex = -1;
-	
+
 	    if (depth < length - 1) {
-	
+
 	        subKeysCount = getSortedKeys(pathmap, subKeys);
-	
+
 	        while (++subKeysIndex < subKeysCount) {
 	            key = subKeys[subKeysIndex];
 	            subPath = collapsePathMap(pathmap[key], depth + 1, length);
@@ -8323,38 +8338,38 @@ module.exports =
 	                };
 	            }
 	            code = getHashCode(code + key + subCode);
-	
+
 	            isNumber(key) &&
 	                subPath.keys.push(parseInt(key, 10)) ||
 	                subPath.keys.push(key);
 	        }
-	
+
 	        while(++codesIndex < codesCount) {
-	
+
 	            key = codes[codesIndex];
 	            subPath = subs[key];
 	            subKeys = subPath.keys;
 	            subKeysCount = subKeys.length;
-	
+
 	            if (subKeysCount > 0) {
-	
+
 	                subSets = subPath.sets;
 	                subSetsIndex = -1;
 	                subSetsCount = subSets.length;
 	                firstSubKey = subKeys[0];
-	
+
 	                while (++subSetsIndex < subSetsCount) {
-	
+
 	                    pathset = subSets[subSetsIndex];
 	                    pathsetIndex = -1;
 	                    pathsetCount = pathset.length;
 	                    pathsetClone = new Array(pathsetCount + 1);
 	                    pathsetClone[0] = subKeysCount > 1 && subKeys || firstSubKey;
-	
+
 	                    while (++pathsetIndex < pathsetCount) {
 	                        pathsetClone[pathsetIndex + 1] = pathset[pathsetIndex];
 	                    }
-	
+
 	                    pathsets[pathsetsCount++] = pathsetClone;
 	                }
 	            }
@@ -8370,28 +8385,28 @@ module.exports =
 	            code = getHashCode(code + subKeys[subKeysIndex]);
 	        }
 	    }
-	
+
 	    return {
 	        code: code,
 	        sets: pathsets
 	    };
 	}
-	
+
 	function collapsePathSetIndexes(pathset) {
-	
+
 	    var keysetIndex = -1;
 	    var keysetCount = pathset.length;
-	
+
 	    while (++keysetIndex < keysetCount) {
 	        var keyset = pathset[keysetIndex];
 	        if (isArray(keyset)) {
 	            pathset[keysetIndex] = collapseIndex(keyset);
 	        }
 	    }
-	
+
 	    return pathset;
 	}
-	
+
 	/**
 	 * Collapse range indexers, e.g. when there is a continuous
 	 * range in an array, turn it into an object instead:
@@ -8401,17 +8416,17 @@ module.exports =
 	 * @private
 	 */
 	function collapseIndex(keyset) {
-	
+
 	    // Do we need to dedupe an indexer keyset if they're duplicate consecutive integers?
 	    // var hash = {};
 	    var keyIndex = -1;
 	    var keyCount = keyset.length - 1;
 	    var isSparseRange = keyCount > 0;
-	
+
 	    while (++keyIndex <= keyCount) {
-	
+
 	        var key = keyset[keyIndex];
-	
+
 	        if (!isNumber(key) /* || hash[key] === true*/ ) {
 	            isSparseRange = false;
 	            break;
@@ -8420,14 +8435,14 @@ module.exports =
 	        // Cast number indexes to integers.
 	        keyset[keyIndex] = parseInt(key, 10);
 	    }
-	
+
 	    if (isSparseRange === true) {
-	
+
 	        keyset.sort(sortListAscending);
-	
+
 	        var from = keyset[0];
 	        var to = keyset[keyCount];
-	
+
 	        // If we re-introduce deduped integer indexers, change this comparson to "===".
 	        if (to - from <= keyCount) {
 	            return {
@@ -8436,14 +8451,14 @@ module.exports =
 	            };
 	        }
 	    }
-	
+
 	    return keyset;
 	}
-	
+
 	function sortListAscending(a, b) {
 	    return a - b;
 	}
-	
+
 	/* jshint forin: false */
 	function getSortedKeys(map, keys, sort) {
 	    var len = 0;
@@ -8455,7 +8470,7 @@ module.exports =
 	    }
 	    return len;
 	}
-	
+
 	function getHashCode(key) {
 	    var code = 5381;
 	    var index = -1;
@@ -8465,7 +8480,7 @@ module.exports =
 	    }
 	    return String(code);
 	}
-	
+
 	/**
 	 * Return true if argument is a number or can be cast to a number
 	 * @private
@@ -8477,7 +8492,7 @@ module.exports =
 	    // adding 1 corrects loss of precision from parseFloat (#15100)
 	    return !isArray(val) && (val - parseFloat(val) + 1) >= 0;
 	}
-	
+
 
 
 /***/ },
@@ -8486,7 +8501,7 @@ module.exports =
 
 	var toPaths = __webpack_require__(34);
 	var toTree = __webpack_require__(29);
-	
+
 	module.exports = function collapse(paths) {
 	    var collapseMap = paths.
 	        reduce(function(acc, path) {
@@ -8497,13 +8512,13 @@ module.exports =
 	            acc[len].push(path);
 	            return acc;
 	        }, {});
-	
+
 	    Object.
 	        keys(collapseMap).
 	        forEach(function(collapseKey) {
 	            collapseMap[collapseKey] = toTree(collapseMap[collapseKey]);
 	        });
-	
+
 	    return toPaths(collapseMap);
 	};
 
@@ -8533,9 +8548,9 @@ module.exports =
 	var __version = __webpack_require__(42);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	var $ref = __webpack_require__(45);
-	
+
 	var promote = __webpack_require__(46);
 	var isExpired = __webpack_require__(52);
 	var isFunction = __webpack_require__(14);
@@ -8544,7 +8559,7 @@ module.exports =
 	var iterateKeySet = __webpack_require__(27).iterateKeySet;
 	var incrementVersion = __webpack_require__(59);
 	var mergeJSONGraphNode = __webpack_require__(60);
-	
+
 	/**
 	 * Merges a list of JSON Graph Envelopes into a cache JSON Graph.
 	 * @function
@@ -8552,37 +8567,37 @@ module.exports =
 	 * @param {Array.<PathValue>} jsonGraphEnvelopes - the PathValues to set.
 	 * @return {Array.<Path>} - a list of optimized paths for the successfully set values.
 	 */
-	
+
 	module.exports = function setJSONGraphs(model, jsonGraphEnvelopes, x, errorSelector, comparator) {
-	
+
 	    var modelRoot = model._root;
 	    var lru = modelRoot;
 	    var expired = modelRoot.expired;
 	    var version = incrementVersion();
 	    var cache = modelRoot.cache;
 	    var initialVersion = cache[__version];
-	
+
 	    var requestedPath = [];
 	    var optimizedPath = [];
 	    var requestedPaths = [];
 	    var optimizedPaths = [];
 	    var jsonGraphEnvelopeIndex = -1;
 	    var jsonGraphEnvelopeCount = jsonGraphEnvelopes.length;
-	
+
 	    while (++jsonGraphEnvelopeIndex < jsonGraphEnvelopeCount) {
-	
+
 	        var jsonGraphEnvelope = jsonGraphEnvelopes[jsonGraphEnvelopeIndex];
 	        var paths = jsonGraphEnvelope.paths;
 	        var jsonGraph = jsonGraphEnvelope.jsonGraph;
-	
+
 	        var pathIndex = -1;
 	        var pathCount = paths.length;
-	
+
 	        while (++pathIndex < pathCount) {
-	
+
 	            var path = paths[pathIndex];
 	            optimizedPath.index = 0;
-	
+
 	            setJSONGraphPathSet(
 	                path, 0,
 	                cache, cache, cache,
@@ -8592,40 +8607,40 @@ module.exports =
 	            );
 	        }
 	    }
-	
+
 	    var newVersion = cache[__version];
 	    var rootChangeHandler = modelRoot.onChange;
-	
+
 	    if (isFunction(rootChangeHandler) && initialVersion !== newVersion) {
 	        rootChangeHandler();
 	    }
-	
+
 	    return [requestedPaths, optimizedPaths];
 	};
-	
+
 	/* eslint-disable no-constant-condition */
 	function setJSONGraphPathSet(
 	    path, depth, root, parent, node,
 	    messageRoot, messageParent, message,
 	    requestedPaths, optimizedPaths, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var note = {};
 	    var branch = depth < path.length - 1;
 	    var keySet = path[depth];
 	    var key = iterateKeySet(keySet, note);
 	    var optimizedIndex = optimizedPath.index;
-	
+
 	    do {
-	
+
 	        requestedPath.depth = depth;
-	
+
 	        var results = setNode(
 	            root, parent, node, messageRoot, messageParent, message,
 	            key, branch, false, requestedPath, optimizedPath,
 	            version, expired, lru, comparator, errorSelector
 	        );
-	
+
 	        requestedPath[depth] = key;
 	        requestedPath.index = depth;
 	        optimizedPath[optimizedPath.index++] = key;
@@ -8653,29 +8668,29 @@ module.exports =
 	    } while (true);
 	}
 	/* eslint-enable */
-	
+
 	function setReference(
 	    root, node, messageRoot, message, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var reference = node.value;
 	    optimizedPath.splice(0, optimizedPath.length);
 	    optimizedPath.push.apply(optimizedPath, reference);
-	
+
 	    if (isExpired(node)) {
 	        optimizedPath.index = reference.length;
 	        expireNode(node, expired, lru);
 	        return [undefined, root, message, messageRoot];
 	    }
-	
+
 	    promote(lru, node);
-	
+
 	    var index = 0;
 	    var container = node;
 	    var count = reference.length - 1;
 	    var parent = node = root;
 	    var messageParent = message = messageRoot;
-	
+
 	    do {
 	        var key = reference[index];
 	        var branch = index < count;
@@ -8693,9 +8708,9 @@ module.exports =
 	        message = results[2];
 	        messageParent = results[3];
 	    } while (index++ < count);
-	
+
 	    optimizedPath.index = index;
-	
+
 	    if (container[__context] !== node) {
 	        var backRefs = node[__refsLength] || 0;
 	        node[__refsLength] = backRefs + 1;
@@ -8703,40 +8718,40 @@ module.exports =
 	        container[__context] = node;
 	        container[__refIndex] = backRefs;
 	    }
-	
+
 	    return [node, parent, message, messageParent];
 	}
-	
+
 	function setNode(
 	    root, parent, node, messageRoot, messageParent, message,
 	    key, branch, reference, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var type = node.$type;
-	
+
 	    while (type === $ref) {
-	
+
 	        var results = setReference(
 	            root, node, messageRoot, message, requestedPath, optimizedPath,
 	            version, expired, lru, comparator, errorSelector
 	        );
-	
+
 	        node = results[0];
-	
+
 	        if (isPrimitive(node)) {
 	            return results;
 	        }
-	
+
 	        parent = results[1];
 	        message = results[2];
 	        messageParent = results[3];
 	        type = node.$type;
 	    }
-	
+
 	    if (type !== void 0) {
 	        return [node, parent, message, messageParent];
 	    }
-	
+
 	    if (key == null) {
 	        if (branch) {
 	            throw new Error("`null` is not allowed in branch key positions.");
@@ -8749,12 +8764,12 @@ module.exports =
 	        node = parent[key];
 	        message = messageParent && messageParent[key];
 	    }
-	
+
 	    node = mergeJSONGraphNode(
 	        parent, node, message, key, requestedPath, optimizedPath,
 	        version, expired, lru, comparator, errorSelector
 	    );
-	
+
 	    return [node, parent, message, messageParent];
 	}
 
@@ -8828,39 +8843,39 @@ module.exports =
 	var __tail = __webpack_require__(49);
 	var __next = __webpack_require__(50);
 	var __prev = __webpack_require__(51);
-	
+
 	var isObject = __webpack_require__(16);
-	
+
 	module.exports = function lruPromote(root, node) {
-	
+
 	    if (isObject(node) && (node.$expires !== $expiresNever)) {
-	
+
 	        var head = root[__head],
 	            tail = root[__tail],
 	            next = node[__next],
 	            prev = node[__prev];
-	
+
 	        if (node !== head) {
-	
+
 	            if (next != null && typeof next === "object") {
 	                next[__prev] = prev;
 	            }
-	
+
 	            if (prev != null && typeof prev === "object") {
 	                prev[__next] = next;
 	            }
-	
+
 	            next = head;
-	
+
 	            if (head != null && typeof head === "object") {
 	                head[__prev] = node;
 	            }
-	
+
 	            root[__head] = root[__next] = head = node;
 	            head[__next] = next;
 	            head[__prev] = void 0;
 	        }
-	
+
 	        if (tail == null || node === tail) {
 	            root[__tail] = root[__prev] = tail = prev || node;
 	        }
@@ -8911,7 +8926,7 @@ module.exports =
 	var now = __webpack_require__(53);
 	var $now = __webpack_require__(54);
 	var $never = __webpack_require__(47);
-	
+
 	module.exports = function isAlreadyExpired(node) {
 	    var exp = node.$expires;
 	    return (exp != null) && (
@@ -8951,7 +8966,7 @@ module.exports =
 
 	var splice = __webpack_require__(57);
 	var __invalidated = __webpack_require__(58);
-	
+
 	module.exports = function expireNode(node, expired, lru) {
 	    if (!node[__invalidated]) {
 	        node[__invalidated] = true;
@@ -8970,30 +8985,30 @@ module.exports =
 	var __tail = __webpack_require__(49);
 	var __next = __webpack_require__(50);
 	var __prev = __webpack_require__(51);
-	
+
 	module.exports = function lruSplice(root, node) {
-	
+
 	    var head = root[__head],
 	        tail = root[__tail],
 	        next = node[__next],
 	        prev = node[__prev];
-	
+
 	    if (next != null && typeof next === "object") {
 	        next[__prev] = prev;
 	    }
-	
+
 	    if (prev != null && typeof prev === "object") {
 	        prev[__next] = next;
 	    }
-	
+
 	    if (node === head) {
 	        root[__head] = root[__next] = next;
 	    }
-	
+
 	    if (node === tail) {
 	        root[__tail] = root[__prev] = prev;
 	    }
-	
+
 	    node[__next] = node[__prev] = void 0;
 	    head = tail = next = prev = void 0;
 	};
@@ -9022,7 +9037,7 @@ module.exports =
 
 	var __key = __webpack_require__(38);
 	var __parent = __webpack_require__(61);
-	
+
 	var $ref = __webpack_require__(45);
 	var $error = __webpack_require__(62);
 	var getSize = __webpack_require__(63);
@@ -9030,7 +9045,7 @@ module.exports =
 	var isObject = __webpack_require__(16);
 	var isExpired = __webpack_require__(65);
 	var isFunction = __webpack_require__(14);
-	
+
 	var promote = __webpack_require__(46);
 	var wrapNode = __webpack_require__(66);
 	var insertNode = __webpack_require__(81);
@@ -9038,17 +9053,17 @@ module.exports =
 	var replaceNode = __webpack_require__(82);
 	var updateNodeAncestors = __webpack_require__(88);
 	var reconstructPath = __webpack_require__(90);
-	
+
 	module.exports = function mergeJSONGraphNode(
 	    parent, node, message, key, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var sizeOffset;
-	
+
 	    var cType, mType,
 	        cIsObject, mIsObject,
 	        cTimestamp, mTimestamp;
-	
+
 	    // If the cache and message are the same, we can probably return early:
 	    // - If they're both nullsy,
 	    //   - If null then the node needs to be wrapped in an atom and inserted.
@@ -9058,7 +9073,7 @@ module.exports =
 	    // - If they're both branches, return the branch.
 	    // - If they're both edges, continue below.
 	    if (node === message) {
-	
+
 	        // There should not be undefined values.  Those should always be
 	        // wrapped in an $atom
 	        if (message === null) {
@@ -9068,12 +9083,12 @@ module.exports =
 	            promote(lru, node);
 	            return node;
 	        }
-	
+
 	        // The messange and cache are both undefined, therefore return null.
 	        else if (message === undefined) {
 	            return message;
 	        }
-	
+
 	        else {
 	            cIsObject = isObject(node);
 	            if (cIsObject) {
@@ -9096,7 +9111,7 @@ module.exports =
 	            cType = node.$type;
 	        }
 	    }
-	
+
 	    // If the cache isn't a reference, we might be able to return early.
 	    if (cType !== $ref) {
 	        mIsObject = isObject(message);
@@ -9139,10 +9154,10 @@ module.exports =
 	                        return node;
 	                    }
 	                } else {
-	
+
 	                    cTimestamp = node.$timestamp;
 	                    mTimestamp = message.$timestamp;
-	
+
 	                    // - If either the cache or message reference is expired,
 	                    //   replace the cache reference with the message.
 	                    // - If neither of the references are expired, compare their
@@ -9158,7 +9173,7 @@ module.exports =
 	            }
 	        }
 	    }
-	
+
 	    // If the cache is a leaf but the message is a branch, merge the branch over the leaf.
 	    if (cType && mIsObject && !mType) {
 	        return insertNode(replaceNode(node, message, parent, key, lru), parent, key);
@@ -9169,11 +9184,11 @@ module.exports =
 	        // of the message's ancestors. If this is the first time we've seen this
 	        // leaf, give the message a $size and $type, attach its graph pointers,
 	        // and update the cache sizes and versions.
-	
+
 	        if (mType === $error && isFunction(errorSelector)) {
 	            message = errorSelector(reconstructPath(requestedPath, key), message);
 	        }
-	
+
 	        if (mType && node === message) {
 	            if (node[__parent] == null) {
 	                node = wrapNode(node, cType, node.value);
@@ -9210,7 +9225,7 @@ module.exports =
 	                node = insertNode(node, parent, key, version);
 	            }
 	        }
-	
+
 	        // Promote the message edge in the LRU.
 	        if (isExpired(node)) {
 	            expireNode(node, expired, lru);
@@ -9221,7 +9236,7 @@ module.exports =
 	    else if (node == null) {
 	        node = insertNode(message, parent, key);
 	    }
-	
+
 	    return node;
 	};
 
@@ -9267,7 +9282,7 @@ module.exports =
 	var now = __webpack_require__(53);
 	var $now = __webpack_require__(54);
 	var $never = __webpack_require__(47);
-	
+
 	module.exports = function isExpired(node) {
 	    var exp = node.$expires;
 	    return (exp != null) && (
@@ -9282,25 +9297,25 @@ module.exports =
 
 	var jsong = __webpack_require__(67);
 	var $atom = jsong.atom;
-	
+
 	var now = __webpack_require__(53);
 	var expiresNow = __webpack_require__(54);
-	
+
 	var __modelCreated = __webpack_require__(78);
-	
+
 	var atomSize = 50;
-	
+
 	var clone = __webpack_require__(79);
 	var isArray = Array.isArray;
 	var getSize = __webpack_require__(63);
 	var getExpires = __webpack_require__(80);
-	
+
 	module.exports = function wrapNode(nodeArg, typeArg, value) {
-	
+
 	    var size = 0;
 	    var node = nodeArg;
 	    var type = typeArg;
-	
+
 	    if (type) {
 	        node = clone(node);
 	        size = getSize(node);
@@ -9310,7 +9325,7 @@ module.exports =
 	        type = node.$type;
 	        node[__modelCreated] = true;
 	    }
-	
+
 	    if (value == null) {
 	        size = atomSize + 1;
 	    } else if (size == null || size <= 0) {
@@ -9330,15 +9345,15 @@ module.exports =
 	                break;
 	        }
 	    }
-	
+
 	    var expires = getExpires(node);
-	
+
 	    if (typeof expires === "number" && expires < expiresNow) {
 	        node.$expires = now() + (expires * -1);
 	    }
-	
+
 	    node.$size = size;
-	
+
 	    return node;
 	};
 
@@ -9348,7 +9363,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var pathSyntax = __webpack_require__(68);
-	
+
 	function sentinel(type, value, props) {
 	    var copy = Object.create(null);
 	    if (props != null) {
@@ -9364,7 +9379,7 @@ module.exports =
 	        return { $type: type, value: value };
 	    }    
 	}
-	
+
 	module.exports = {
 	    ref: function ref(path, props) {
 	        return sentinel("ref", pathSyntax.fromPath(path), props);
@@ -9394,13 +9409,13 @@ module.exports =
 	var Tokenizer = __webpack_require__(69);
 	var head = __webpack_require__(71);
 	var RoutedTokens = __webpack_require__(77);
-	
+
 	var parser = function parser(string, extendedRules) {
 	    return head(new Tokenizer(string, extendedRules));
 	};
-	
+
 	module.exports = parser;
-	
+
 	// Constructs the paths from paths / pathValues that have strings.
 	// If it does not have a string, just moves the value into the return
 	// results.
@@ -9408,45 +9423,45 @@ module.exports =
 	    if (!paths) {
 	        return [];
 	    }
-	
+
 	    var out = [];
 	    for (var i = 0, len = paths.length; i < len; i++) {
-	
+
 	        // Is the path a string
 	        if (typeof paths[i] === 'string') {
 	            out[i] = parser(paths[i], ext);
 	        }
-	
+
 	        // is the path a path value with a string value.
 	        else if (typeof paths[i].path === 'string') {
 	            out[i] = {
 	                path: parser(paths[i].path, ext), value: paths[i].value
 	            };
 	        }
-	
+
 	        // just copy it over.
 	        else {
 	            out[i] = paths[i];
 	        }
 	    }
-	
+
 	    return out;
 	};
-	
+
 	// If the argument is a string, this with convert, else just return
 	// the path provided.
 	parser.fromPath = function(path, ext) {
 	    if (!path) {
 	        return [];
 	    }
-	
+
 	    if (typeof path === 'string') {
 	        return parser(path, ext);
 	    }
-	
+
 	    return path;
 	};
-	
+
 	// Potential routed tokens.
 	parser.RoutedTokens = RoutedTokens;
 
@@ -9469,14 +9484,14 @@ module.exports =
 	var SPACE = " ";
 	var SPECIAL_CHARACTERS = '\\\'"[]., ';
 	var EXT_SPECIAL_CHARACTERS = '\\{}\'"[]., :';
-	
+
 	var Tokenizer = module.exports = function(string, ext) {
 	    this._string = string;
 	    this._idx = -1;
 	    this._extended = ext;
 	    this.parseString = '';
 	};
-	
+
 	Tokenizer.prototype = {
 	    /**
 	     * grabs the next token either from the peek operation or generates the
@@ -9485,14 +9500,14 @@ module.exports =
 	    next: function() {
 	        var nextToken = this._nextToken ?
 	            this._nextToken : getNext(this._string, this._idx, this._extended);
-	
+
 	        this._idx = nextToken.idx;
 	        this._nextToken = false;
 	        this.parseString += nextToken.token.token;
-	
+
 	        return nextToken.token;
 	    },
-	
+
 	    /**
 	     * will peak but not increment the tokenizer
 	     */
@@ -9500,18 +9515,18 @@ module.exports =
 	        var nextToken = this._nextToken ?
 	            this._nextToken : getNext(this._string, this._idx, this._extended);
 	        this._nextToken = nextToken;
-	
+
 	        return nextToken.token;
 	    }
 	};
-	
+
 	Tokenizer.toNumber = function toNumber(x) {
 	    if (!isNaN(+x)) {
 	        return +x;
 	    }
 	    return NaN;
 	};
-	
+
 	function toOutput(token, type, done) {
 	    return {
 	        token: token,
@@ -9519,37 +9534,37 @@ module.exports =
 	        type: type
 	    };
 	}
-	
+
 	function getNext(string, idx, ext) {
 	    var output = false;
 	    var token = '';
 	    var specialChars = ext ?
 	        EXT_SPECIAL_CHARACTERS : SPECIAL_CHARACTERS;
 	    var done;
-	
+
 	    do {
-	
+
 	        done = idx + 1 >= string.length;
 	        if (done) {
 	            break;
 	        }
-	
+
 	        // we have to peek at the next token
 	        var character = string[idx + 1];
-	
+
 	        if (character !== undefined &&
 	            specialChars.indexOf(character) === -1) {
-	
+
 	            token += character;
 	            ++idx;
 	            continue;
 	        }
-	
+
 	        // The token to delimiting character transition.
 	        else if (token.length) {
 	            break;
 	        }
-	
+
 	        ++idx;
 	        var type;
 	        switch (character) {
@@ -9591,22 +9606,22 @@ module.exports =
 	        output = toOutput(character, type, false);
 	        break;
 	    } while (!done);
-	
+
 	    if (!output && token.length) {
 	        output = toOutput(token, TokenTypes.token, false);
 	    }
-	
+
 	    if (!output) {
 	        output = {done: true};
 	    }
-	
+
 	    return {
 	        token: output,
 	        idx: idx
 	    };
 	}
-	
-	
+
+
 
 
 /***/ },
@@ -9627,7 +9642,7 @@ module.exports =
 	    quote: 'quote',
 	    unknown: 'unknown'
 	};
-	
+
 	module.exports = TokenTypes;
 
 
@@ -9638,7 +9653,7 @@ module.exports =
 	var TokenTypes = __webpack_require__(70);
 	var E = __webpack_require__(72);
 	var indexer = __webpack_require__(73);
-	
+
 	/**
 	 * The top level of the parse tree.  This returns the generated path
 	 * from the tokenizer.
@@ -9647,9 +9662,9 @@ module.exports =
 	    var token = tokenizer.next();
 	    var state = {};
 	    var out = [];
-	
+
 	    while (!token.done) {
-	
+
 	        switch (token.type) {
 	            case TokenTypes.token:
 	                var first = +token.token[0];
@@ -9658,42 +9673,42 @@ module.exports =
 	                }
 	                out[out.length] = token.token;
 	                break;
-	
+
 	            // dotSeparators at the top level have no meaning
 	            case TokenTypes.dotSeparator:
 	                if (out.length === 0) {
 	                    E.throwError(E.unexpectedToken, tokenizer);
 	                }
 	                break;
-	
+
 	            // Spaces do nothing.
 	            case TokenTypes.space:
 	                // NOTE: Spaces at the top level are allowed.
 	                // titlesById  .summary is a valid path.
 	                break;
-	
-	
+
+
 	            // Its time to decend the parse tree.
 	            case TokenTypes.openingBracket:
 	                indexer(tokenizer, token, state, out);
 	                break;
-	
+
 	            default:
 	                E.throwError(E.unexpectedToken, tokenizer);
 	                break;
 	        }
-	
+
 	        // Keep cycling through the tokenizer.
 	        token = tokenizer.next();
 	    }
-	
+
 	    if (out.length === 0) {
 	        E.throwError(E.invalidPath, tokenizer);
 	    }
-	
+
 	    return out;
 	};
-	
+
 
 
 /***/ },
@@ -9731,7 +9746,7 @@ module.exports =
 	        throw err + ' -- ' + tokenizer.parseString;
 	    }
 	};
-	
+
 
 
 /***/ },
@@ -9744,7 +9759,7 @@ module.exports =
 	var range = __webpack_require__(74);
 	var quote = __webpack_require__(75);
 	var routed = __webpack_require__(76);
-	
+
 	/**
 	 * The indexer is all the logic that happens in between
 	 * the '[', opening bracket, and ']' closing bracket.
@@ -9754,31 +9769,31 @@ module.exports =
 	    var done = false;
 	    var allowedMaxLength = 1;
 	    var routedIndexer = false;
-	
+
 	    // State variables
 	    state.indexer = [];
-	
+
 	    while (!token.done) {
-	
+
 	        switch (token.type) {
 	            case TokenTypes.token:
 	            case TokenTypes.quote:
-	
+
 	                // ensures that token adders are properly delimited.
 	                if (state.indexer.length === allowedMaxLength) {
 	                    E.throwError(idxE.requiresComma, tokenizer);
 	                }
 	                break;
 	        }
-	
+
 	        switch (token.type) {
 	            // Extended syntax case
 	            case TokenTypes.openingBrace:
 	                routedIndexer = true;
 	                routed(tokenizer, token, state, out);
 	                break;
-	
-	
+
+
 	            case TokenTypes.token:
 	                var t = +token.token;
 	                if (isNaN(t)) {
@@ -9786,7 +9801,7 @@ module.exports =
 	                }
 	                state.indexer[state.indexer.length] = t;
 	                break;
-	
+
 	            // dotSeparators at the top level have no meaning
 	            case TokenTypes.dotSeparator:
 	                if (!state.indexer.length) {
@@ -9794,64 +9809,64 @@ module.exports =
 	                }
 	                range(tokenizer, token, state, out);
 	                break;
-	
+
 	            // Spaces do nothing.
 	            case TokenTypes.space:
 	                break;
-	
+
 	            case TokenTypes.closingBracket:
 	                done = true;
 	                break;
-	
-	
+
+
 	            // The quotes require their own tree due to what can be in it.
 	            case TokenTypes.quote:
 	                quote(tokenizer, token, state, out);
 	                break;
-	
-	
+
+
 	            // Its time to decend the parse tree.
 	            case TokenTypes.openingBracket:
 	                E.throwError(idxE.nested, tokenizer);
 	                break;
-	
+
 	            case TokenTypes.commaSeparator:
 	                ++allowedMaxLength;
 	                break;
-	
+
 	            default:
 	                E.throwError(E.unexpectedToken, tokenizer);
 	                break;
 	        }
-	
+
 	        // If done, leave loop
 	        if (done) {
 	            break;
 	        }
-	
+
 	        // Keep cycling through the tokenizer.
 	        token = tokenizer.next();
 	    }
-	
+
 	    if (state.indexer.length === 0) {
 	        E.throwError(idxE.empty, tokenizer);
 	    }
-	
+
 	    if (state.indexer.length > 1 && routedIndexer) {
 	        E.throwError(idxE.routedTokens, tokenizer);
 	    }
-	
+
 	    // Remember, if an array of 1, keySets will be generated.
 	    if (state.indexer.length === 1) {
 	        state.indexer = state.indexer[0];
 	    }
-	
+
 	    out[out.length] = state.indexer;
-	
+
 	    // Clean state.
 	    state.indexer = undefined;
 	};
-	
+
 
 
 /***/ },
@@ -9861,7 +9876,7 @@ module.exports =
 	var Tokenizer = __webpack_require__(69);
 	var TokenTypes = __webpack_require__(70);
 	var E = __webpack_require__(72);
-	
+
 	/**
 	 * The indexer is all the logic that happens in between
 	 * the '[', opening bracket, and ']' closing bracket.
@@ -9871,70 +9886,70 @@ module.exports =
 	    var dotCount = 1;
 	    var done = false;
 	    var inclusive = true;
-	
+
 	    // Grab the last token off the stack.  Must be an integer.
 	    var idx = state.indexer.length - 1;
 	    var from = Tokenizer.toNumber(state.indexer[idx]);
 	    var to;
-	
+
 	    if (isNaN(from)) {
 	        E.throwError(E.range.precedingNaN, tokenizer);
 	    }
-	
+
 	    // Why is number checking so difficult in javascript.
-	
+
 	    while (!done && !token.done) {
-	
+
 	        switch (token.type) {
-	
+
 	            // dotSeparators at the top level have no meaning
 	            case TokenTypes.dotSeparator:
 	                if (dotCount === 3) {
 	                    E.throwError(E.unexpectedToken, tokenizer);
 	                }
 	                ++dotCount;
-	
+
 	                if (dotCount === 3) {
 	                    inclusive = false;
 	                }
 	                break;
-	
+
 	            case TokenTypes.token:
 	                // move the tokenizer forward and save to.
 	                to = Tokenizer.toNumber(tokenizer.next().token);
-	
+
 	                // throw potential error.
 	                if (isNaN(to)) {
 	                    E.throwError(E.range.suceedingNaN, tokenizer);
 	                }
-	
+
 	                done = true;
 	                break;
-	
+
 	            default:
 	                done = true;
 	                break;
 	        }
-	
+
 	        // Keep cycling through the tokenizer.  But ranges have to peek
 	        // before they go to the next token since there is no 'terminating'
 	        // character.
 	        if (!done) {
 	            tokenizer.next();
-	
+
 	            // go to the next token without consuming.
 	            token = tokenizer.peek();
 	        }
-	
+
 	        // break and remove state information.
 	        else {
 	            break;
 	        }
 	    }
-	
+
 	    state.indexer[idx] = {from: from, to: inclusive ? to : to - 1};
 	};
-	
+
 
 
 /***/ },
@@ -9944,7 +9959,7 @@ module.exports =
 	var TokenTypes = __webpack_require__(70);
 	var E = __webpack_require__(72);
 	var quoteE = E.quote;
-	
+
 	/**
 	 * quote is all the parse tree in between quotes.  This includes the only
 	 * escaping logic.
@@ -9958,16 +9973,16 @@ module.exports =
 	    var openingQuote = openingToken.token;
 	    var escaping = false;
 	    var done = false;
-	
+
 	    while (!token.done) {
-	
+
 	        switch (token.type) {
 	            case TokenTypes.token:
 	            case TokenTypes.space:
-	
+
 	            case TokenTypes.dotSeparator:
 	            case TokenTypes.commaSeparator:
-	
+
 	            case TokenTypes.openingBracket:
 	            case TokenTypes.closingBracket:
 	            case TokenTypes.openingBrace:
@@ -9975,54 +9990,54 @@ module.exports =
 	                if (escaping) {
 	                    E.throwError(quoteE.illegalEscape, tokenizer);
 	                }
-	
+
 	                innerToken += token.token;
 	                break;
-	
-	
+
+
 	            case TokenTypes.quote:
 	                // the simple case.  We are escaping
 	                if (escaping) {
 	                    innerToken += token.token;
 	                    escaping = false;
 	                }
-	
+
 	                // its not a quote that is the opening quote
 	                else if (token.token !== openingQuote) {
 	                    innerToken += token.token;
 	                }
-	
+
 	                // last thing left.  Its a quote that is the opening quote
 	                // therefore we must produce the inner token of the indexer.
 	                else {
 	                    done = true;
 	                }
-	
+
 	                break;
 	            case TokenTypes.escape:
 	                escaping = true;
 	                break;
-	
+
 	            default:
 	                E.throwError(E.unexpectedToken, tokenizer);
 	        }
-	
+
 	        // If done, leave loop
 	        if (done) {
 	            break;
 	        }
-	
+
 	        // Keep cycling through the tokenizer.
 	        token = tokenizer.next();
 	    }
-	
+
 	    if (innerToken.length === 0) {
 	        E.throwError(quoteE.empty, tokenizer);
 	    }
-	
+
 	    state.indexer[state.indexer.length] = innerToken;
 	};
-	
+
 
 
 /***/ },
@@ -10033,7 +10048,7 @@ module.exports =
 	var RoutedTokens = __webpack_require__(77);
 	var E = __webpack_require__(72);
 	var routedE = E.routed;
-	
+
 	/**
 	 * The routing logic.
 	 *
@@ -10044,7 +10059,7 @@ module.exports =
 	    var routeToken = tokenizer.next();
 	    var named = false;
 	    var name = '';
-	
+
 	    // ensure the routed token is a valid ident.
 	    switch (routeToken.token) {
 	        case RoutedTokens.integers:
@@ -10056,27 +10071,27 @@ module.exports =
 	            E.throwError(routedE.invalid, tokenizer);
 	            break;
 	    }
-	
+
 	    // Now its time for colon or ending brace.
 	    var next = tokenizer.next();
-	
+
 	    // we are parsing a named identifier.
 	    if (next.type === TokenTypes.colon) {
 	        named = true;
-	
+
 	        // Get the token name.
 	        next = tokenizer.next();
 	        if (next.type !== TokenTypes.token) {
 	            E.throwError(routedE.invalid, tokenizer);
 	        }
 	        name = next.token;
-	
+
 	        // move to the closing brace.
 	        next = tokenizer.next();
 	    }
-	
+
 	    // must close with a brace.
-	
+
 	    if (next.type === TokenTypes.closingBrace) {
 	        var outputToken = {
 	            type: routeToken.token,
@@ -10085,14 +10100,14 @@ module.exports =
 	        };
 	        state.indexer[state.indexer.length] = outputToken;
 	    }
-	
+
 	    // closing brace expected
 	    else {
 	        E.throwError(routedE.invalid, tokenizer);
 	    }
-	
+
 	};
-	
+
 
 
 /***/ },
@@ -10121,7 +10136,7 @@ module.exports =
 	var hasOwn = __webpack_require__(15);
 	var isArray = Array.isArray;
 	var isObject = __webpack_require__(16);
-	
+
 	module.exports = function clone(value) {
 	    var dest = value;
 	    if (isObject(dest)) {
@@ -10155,7 +10170,7 @@ module.exports =
 	var __key = __webpack_require__(38);
 	var __parent = __webpack_require__(61);
 	var __version = __webpack_require__(42);
-	
+
 	module.exports = function insertNode(node, parent, key, version) {
 	    node[__key] = key;
 	    node[__parent] = parent;
@@ -10172,7 +10187,7 @@ module.exports =
 	var isObject = __webpack_require__(16);
 	var transferBackReferences = __webpack_require__(83);
 	var removeNodeAndDescendants = __webpack_require__(84);
-	
+
 	module.exports = function replaceNode(node, replacement, parent, key, lru) {
 	    if (node === replacement) {
 	        return node;
@@ -10192,7 +10207,7 @@ module.exports =
 	var __ref = __webpack_require__(40);
 	var __context = __webpack_require__(41);
 	var __refsLength = __webpack_require__(44);
-	
+
 	module.exports = function transferBackReferences(fromNode, destNode) {
 	    var fromNodeRefsLength = fromNode[__refsLength] || 0,
 	        destNodeRefsLength = destNode[__refsLength] || 0,
@@ -10218,7 +10233,7 @@ module.exports =
 	var hasOwn = __webpack_require__(15);
 	var prefix = __webpack_require__(39);
 	var removeNode = __webpack_require__(85);
-	
+
 	module.exports = function removeNodeAndDescendants(node, parent, key, lru) {
 	    if (removeNode(node, parent, key, lru)) {
 	        if (node.$type == null) {
@@ -10244,7 +10259,7 @@ module.exports =
 	var isObject = __webpack_require__(16);
 	var unlinkBackReferences = __webpack_require__(86);
 	var unlinkForwardReference = __webpack_require__(87);
-	
+
 	module.exports = function removeNode(node, parent, key, lru) {
 	    if (isObject(node)) {
 	        var type = node.$type;
@@ -10270,7 +10285,7 @@ module.exports =
 	var __context = __webpack_require__(41);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	module.exports = function unlinkBackReferences(node) {
 	    var i = -1, n = node[__refsLength] || 0;
 	    while (++i < n) {
@@ -10292,7 +10307,7 @@ module.exports =
 	var __context = __webpack_require__(41);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	module.exports = function unlinkForwardReference(reference) {
 	    var destination = reference[__context];
 	    if (destination) {
@@ -10317,7 +10332,7 @@ module.exports =
 	var __parent = __webpack_require__(61);
 	var removeNode = __webpack_require__(85);
 	var updateBackReferenceVersions = __webpack_require__(89);
-	
+
 	module.exports = function updateNodeAncestors(nodeArg, offset, lru, version) {
 	    var child = nodeArg;
 	    do {
@@ -10342,7 +10357,7 @@ module.exports =
 	var __parent = __webpack_require__(61);
 	var __version = __webpack_require__(42);
 	var __refsLength = __webpack_require__(44);
-	
+
 	module.exports = function updateBackReferenceVersions(nodeArg, version) {
 	    var stack = [nodeArg];
 	    var count = 0;
@@ -10380,10 +10395,10 @@ module.exports =
 	 * to insert
 	 */
 	module.exports = function reconstructPath(currentPath, key) {
-	
+
 	    var path = currentPath.slice(0, currentPath.depth);
 	    path[path.length] = key;
-	
+
 	    return path;
 	};
 
@@ -10399,11 +10414,11 @@ module.exports =
 	var __version = __webpack_require__(42);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	var $ref = __webpack_require__(45);
-	
+
 	var getBoundValue = __webpack_require__(92);
-	
+
 	var promote = __webpack_require__(46);
 	var isExpired = __webpack_require__(65);
 	var isFunction = __webpack_require__(14);
@@ -10412,7 +10427,7 @@ module.exports =
 	var iterateKeySet = __webpack_require__(27).iterateKeySet;
 	var incrementVersion = __webpack_require__(59);
 	var mergeValueOrInsertBranch = __webpack_require__(102);
-	
+
 	/**
 	 * Sets a list of PathValues into a JSON Graph.
 	 * @function
@@ -10420,9 +10435,9 @@ module.exports =
 	 * @param {Array.<PathValue>} pathValues - the PathValues to set.
 	 * @return {Array.<Path>} - a list of optimized paths for the successfully set values.
 	 */
-	
+
 	module.exports = function setPathValues(model, pathValues, x, errorSelector, comparator) {
-	
+
 	    var modelRoot = model._root;
 	    var lru = modelRoot;
 	    var expired = modelRoot.expired;
@@ -10432,55 +10447,55 @@ module.exports =
 	    var node = bound.length ? getBoundValue(model, bound).value : cache;
 	    var parent = node[__parent] || cache;
 	    var initialVersion = cache[__version];
-	
+
 	    var requestedPath = [];
 	    var requestedPaths = [];
 	    var optimizedPaths = [];
 	    var optimizedIndex = bound.length;
 	    var pathValueIndex = -1;
 	    var pathValueCount = pathValues.length;
-	
+
 	    while (++pathValueIndex < pathValueCount) {
-	
+
 	        var pathValue = pathValues[pathValueIndex];
 	        var path = pathValue.path;
 	        var value = pathValue.value;
 	        var optimizedPath = bound.slice(0);
 	        optimizedPath.index = optimizedIndex;
-	
+
 	        setPathSet(
 	            value, path, 0, cache, parent, node,
 	            requestedPaths, optimizedPaths, requestedPath, optimizedPath,
 	            version, expired, lru, comparator, errorSelector
 	        );
 	    }
-	
+
 	    var newVersion = cache[__version];
 	    var rootChangeHandler = modelRoot.onChange;
-	
+
 	    if (isFunction(rootChangeHandler) && initialVersion !== newVersion) {
 	        rootChangeHandler();
 	    }
-	
+
 	    return [requestedPaths, optimizedPaths];
 	};
-	
+
 	/* eslint-disable no-constant-condition */
 	function setPathSet(
 	    value, path, depth, root, parent, node,
 	    requestedPaths, optimizedPaths, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var note = {};
 	    var branch = depth < path.length - 1;
 	    var keySet = path[depth];
 	    var key = iterateKeySet(keySet, note);
 	    var optimizedIndex = optimizedPath.index;
-	
+
 	    do {
-	
+
 	        requestedPath.depth = depth;
-	
+
 	        var results = setNode(
 	            root, parent, node, key, value,
 	            branch, false, requestedPath, optimizedPath,
@@ -10513,38 +10528,38 @@ module.exports =
 	    } while (true);
 	}
 	/* eslint-enable */
-	
+
 	function setReference(
 	    value, root, node, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var reference = node.value;
 	    optimizedPath.splice(0, optimizedPath.length);
 	    optimizedPath.push.apply(optimizedPath, reference);
-	
+
 	    if (isExpired(node)) {
 	        optimizedPath.index = reference.length;
 	        expireNode(node, expired, lru);
 	        return [undefined, root];
 	    }
-	
+
 	    promote(lru, node);
-	
+
 	    var container = node;
 	    var parent = root;
-	
+
 	    node = node[__context];
-	
+
 	    if (node != null) {
 	        parent = node[__parent] || root;
 	        optimizedPath.index = reference.length;
 	    } else {
-	
+
 	        var index = 0;
 	        var count = reference.length - 1;
-	
+
 	        parent = node = root;
-	
+
 	        do {
 	            var key = reference[index];
 	            var branch = index < count;
@@ -10560,9 +10575,9 @@ module.exports =
 	            }
 	            parent = results[1];
 	        } while (index++ < count);
-	
+
 	        optimizedPath.index = index;
-	
+
 	        if (container[__context] !== node) {
 	            var backRefs = node[__refsLength] || 0;
 	            node[__refsLength] = backRefs + 1;
@@ -10571,38 +10586,38 @@ module.exports =
 	            container[__refIndex] = backRefs;
 	        }
 	    }
-	
+
 	    return [node, parent];
 	}
-	
+
 	function setNode(
 	    root, parent, node, key, value,
 	    branch, reference, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var type = node.$type;
-	
+
 	    while (type === $ref) {
-	
+
 	        var results = setReference(
 	            value, root, node, requestedPath, optimizedPath,
 	            version, expired, lru, comparator, errorSelector
 	        );
-	
+
 	        node = results[0];
-	
+
 	        if (isPrimitive(node)) {
 	            return results;
 	        }
-	
+
 	        parent = results[1];
 	        type = node.$type;
 	    }
-	
+
 	    if (type !== void 0) {
 	        return [node, parent];
 	    }
-	
+
 	    if (key == null) {
 	        if (branch) {
 	            throw new Error("`null` is not allowed in branch key positions.");
@@ -10613,13 +10628,13 @@ module.exports =
 	        parent = node;
 	        node = parent[key];
 	    }
-	
+
 	    node = mergeValueOrInsertBranch(
 	        parent, node, key, value,
 	        branch, reference, requestedPath, optimizedPath,
 	        version, expired, lru, comparator, errorSelector
 	    );
-	
+
 	    return [node, parent];
 	}
 
@@ -10630,41 +10645,41 @@ module.exports =
 
 	var getValueSync = __webpack_require__(93);
 	var InvalidModelError = __webpack_require__(101);
-	
+
 	module.exports = function getBoundValue(model, pathArg, materialized) {
-	
+
 	    var path = pathArg;
 	    var boundPath = pathArg;
 	    var boxed, treatErrorsAsValues,
 	        value, shorted, found;
-	
+
 	    boxed = model._boxed;
 	    materialized = model._materialized;
 	    treatErrorsAsValues = model._treatErrorsAsValues;
-	
+
 	    model._boxed = true;
 	    model._materialized = materialized === undefined || materialized;
 	    model._treatErrorsAsValues = true;
-	
+
 	    value = getValueSync(model, path.concat(null), true);
-	
+
 	    model._boxed = boxed;
 	    model._materialized = materialized;
 	    model._treatErrorsAsValues = treatErrorsAsValues;
-	
+
 	    path = value.optimizedPath;
 	    shorted = value.shorted;
 	    found = value.found;
 	    value = value.value;
-	
+
 	    while (path.length && path[path.length - 1] === null) {
 	        path.pop();
 	    }
-	
+
 	    if (found && shorted) {
 	        throw new InvalidModelError(boundPath, path);
 	    }
-	
+
 	    return {
 	        path: path,
 	        value: value,
@@ -10685,7 +10700,7 @@ module.exports =
 	var $ref = __webpack_require__(45);
 	var $atom = __webpack_require__(99);
 	var $error = __webpack_require__(62);
-	
+
 	module.exports = function getValueSync(model, simplePath, noClone) {
 	    var root = model._root.cache;
 	    var len = simplePath.length;
@@ -10695,23 +10710,23 @@ module.exports =
 	    var key, i, next = root, curr = root, out = root, type, ref, refNode;
 	    var found = true;
 	    var expired = false;
-	
+
 	    while (next && depth < len) {
 	        key = simplePath[depth++];
 	        if (key !== null) {
 	            next = curr[key];
 	            optimizedPath[optimizedPath.length] = key;
 	        }
-	
+
 	        if (!next) {
 	            out = undefined;
 	            shorted = true;
 	            found = false;
 	            break;
 	        }
-	
+
 	        type = next.$type;
-	
+
 	        // A materialized item.  There is nothing to deref to.
 	        if (type === $atom && next.value === undefined) {
 	            out = undefined;
@@ -10719,12 +10734,12 @@ module.exports =
 	            shorted = depth < len;
 	            break;
 	        }
-	
+
 	        // Up to the last key we follow references, ensure that they are not
 	        // expired either.
 	        if (depth < len) {
 	            if (type === $ref) {
-	
+
 	                // If the reference is expired then we need to set expired to
 	                // true.
 	                if (isExpired(next)) {
@@ -10733,10 +10748,10 @@ module.exports =
 	                    found = false;
 	                    break;
 	                }
-	
+
 	                ref = followReference(model, root, root, next, next.value);
 	                refNode = ref[0];
-	
+
 	                // The next node is also set to undefined because nothing
 	                // could be found, this reference points to nothing, so
 	                // nothing must be returned.
@@ -10750,7 +10765,7 @@ module.exports =
 	                next = refNode;
 	                optimizedPath = ref[1].slice(0);
 	            }
-	
+
 	            if (type) {
 	                break;
 	            }
@@ -10761,7 +10776,7 @@ module.exports =
 	        }
 	        curr = next;
 	    }
-	
+
 	    if (depth < len && !expired) {
 	        // Unfortunately, if all that follows are nulls, then we have not shorted.
 	        for (i = depth; i < len; ++i) {
@@ -10777,14 +10792,14 @@ module.exports =
 	        } else {
 	            out = next;
 	        }
-	
+
 	        for (i = depth; i < len; ++i) {
 	            if (simplePath[i] !== null) {
 	                optimizedPath[optimizedPath.length] = simplePath[i];
 	            }
 	        }
 	    }
-	
+
 	    // promotes if not expired
 	    if (out && type) {
 	        if (isExpired(out)) {
@@ -10793,7 +10808,7 @@ module.exports =
 	            promote(model, out);
 	        }
 	    }
-	
+
 	    // if (out && out.$type === $error && !model._treatErrorsAsValues) {
 	    if (out && type === $error && !model._treatErrorsAsValues) {
 	        throw {
@@ -10807,7 +10822,7 @@ module.exports =
 	    } else if (out) {
 	        out = out.value;
 	    }
-	
+
 	    return {
 	        value: out,
 	        shorted: shorted,
@@ -10828,17 +10843,17 @@ module.exports =
 	var $ref = __webpack_require__(45);
 	var __context = __webpack_require__(41);
 	var promote = __webpack_require__(97).promote;
-	
+
 	/* eslint-disable no-constant-condition */
 	function followReference(model, root, nodeArg, referenceContainerArg,
 	                         referenceArg, seed, isJSONG) {
-	
+
 	    var node = nodeArg;
 	    var reference = referenceArg;
 	    var referenceContainer = referenceContainerArg;
 	    var depth = 0;
 	    var k, next;
-	
+
 	    while (true) {
 	        if (depth === 0 && referenceContainer[__context]) {
 	            depth = reference.length;
@@ -10850,30 +10865,30 @@ module.exports =
 	        if (next) {
 	            var type = next.$type;
 	            var value = type && next.value || next;
-	
+
 	            if (depth < reference.length) {
 	                if (type) {
 	                    node = next;
 	                    break;
 	                }
-	
+
 	                node = next;
 	                continue;
 	            }
-	
+
 	            // We need to report a value or follow another reference.
 	            else {
-	
+
 	                node = next;
-	
+
 	                if (type && isExpired(next)) {
 	                    break;
 	                }
-	
+
 	                if (!referenceContainer[__context]) {
 	                    createHardlink(referenceContainer, next);
 	                }
-	
+
 	                // Restart the reference follower.
 	                if (type === $ref) {
 	                    if (isJSONG) {
@@ -10882,14 +10897,14 @@ module.exports =
 	                    } else {
 	                        promote(model, next);
 	                    }
-	
+
 	                    depth = 0;
 	                    reference = value;
 	                    referenceContainer = next;
 	                    node = root;
 	                    continue;
 	                }
-	
+
 	                break;
 	            }
 	        } else {
@@ -10897,8 +10912,8 @@ module.exports =
 	        }
 	        break;
 	    }
-	
-	
+
+
 	    if (depth < reference.length && node !== void 0) {
 	        var ref = [];
 	        for (var i = 0; i < depth; i++) {
@@ -10906,11 +10921,11 @@ module.exports =
 	        }
 	        reference = ref;
 	    }
-	
+
 	    return [node, reference];
 	}
 	/* eslint-enable */
-	
+
 	module.exports = followReference;
 
 
@@ -10922,36 +10937,36 @@ module.exports =
 	var __context = __webpack_require__(41);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	function createHardlink(from, to) {
-	
+
 	    // create a back reference
 	    var backRefs = to[__refsLength] || 0;
 	    to[__ref + backRefs] = from;
 	    to[__refsLength] = backRefs + 1;
-	
+
 	    // create a hard reference
 	    from[__refIndex] = backRefs;
 	    from[__context] = to;
 	}
-	
+
 	function removeHardlink(cacheObject) {
 	    var context = cacheObject[__context];
 	    if (context) {
 	        var idx = cacheObject[__refIndex];
 	        var len = context[__refsLength];
-	
+
 	        while (idx < len) {
 	            context[__ref + idx] = context[__ref + idx + 1];
 	            ++idx;
 	        }
-	
+
 	        context[__refsLength] = len - 1;
 	        cacheObject[__context] = void 0;
 	        cacheObject[__refIndex] = void 0;
 	    }
 	}
-	
+
 	module.exports = {
 	    create: createHardlink,
 	    remove: removeHardlink
@@ -10969,7 +10984,7 @@ module.exports =
 	var $atom = __webpack_require__(99);
 	var $error = __webpack_require__(62);
 	var $modelCreated = __webpack_require__(78);
-	
+
 	module.exports = function onValue(model, node, seed, depth, outerResults,
 	                                  requestedPath, optimizedPath, optimizedLength,
 	                                  isJSONG, fromReference) {
@@ -10977,28 +10992,28 @@ module.exports =
 	    if (!seed) {
 	        return;
 	    }
-	
+
 	    var i, len, k, key, curr, prev, prevK;
 	    var materialized = false, valueNode;
-	
+
 	    if (node) {
 	        promote(model, node);
 	    }
-	
+
 	    if (!node || node.value === undefined) {
 	        materialized = model._materialized;
 	    }
-	
+
 	    // materialized
 	    if (materialized) {
 	        valueNode = {$type: $atom};
 	    }
-	
+
 	    // Boxed Mode will clone the node.
 	    else if (model._boxed) {
 	        valueNode = clone(node);
 	    }
-	
+
 	    // JSONG always clones the node.
 	    else if (node.$type === $ref || node.$type === $error) {
 	        if (isJSONG) {
@@ -11007,7 +11022,7 @@ module.exports =
 	            valueNode = node.value;
 	        }
 	    }
-	
+
 	    else if (isJSONG) {
 	        var isObject = node.value && typeof node.value === "object";
 	        var isUserCreatedNode = !node[$modelCreated];
@@ -11017,15 +11032,15 @@ module.exports =
 	            valueNode = node.value;
 	        }
 	    }
-	
+
 	    else {
 	        valueNode = node.value;
 	    }
-	
+
 	    if (outerResults) {
 	        outerResults.hasValue = true;
 	    }
-	
+
 	    if (isJSONG) {
 	        curr = seed.jsonGraph;
 	        if (!curr) {
@@ -11034,29 +11049,29 @@ module.exports =
 	        }
 	        for (i = 0, len = optimizedLength - 1; i < len; i++) {
 	            key = optimizedPath[i];
-	
+
 	            if (!curr[key]) {
 	                curr[key] = {};
 	            }
 	            curr = curr[key];
 	        }
-	
+
 	        // assign the last
 	        key = optimizedPath[i];
-	
+
 	        // TODO: Special case? do string comparisons make big difference?
 	        curr[key] = materialized ? {$type: $atom} : valueNode;
 	        if (requestedPath) {
 	            seed.paths.push(requestedPath.slice(0, depth));
 	        }
 	    }
-	
+
 	    // The output is pathMap and the depth is 0.  It is just a
 	    // value report it as the found JSON
 	    else if (depth === 0) {
 	        seed.json = valueNode;
 	    }
-	
+
 	    // The output is pathMap but we need to build the pathMap before
 	    // reporting the value.
 	    else {
@@ -11092,7 +11107,7 @@ module.exports =
 	var __next = __webpack_require__(50);
 	var __prev = __webpack_require__(51);
 	var __invalidated = __webpack_require__(58);
-	
+
 	// [H] -> Next -> ... -> [T]
 	// [T] -> Prev -> ... -> [H]
 	function lruPromote(model, object) {
@@ -11101,7 +11116,7 @@ module.exports =
 	    if (head === object) {
 	        return;
 	    }
-	
+
 	    // The item always exist in the cache since to get anything in the
 	    // cache it first must go through set.
 	    var prev = object[__prev];
@@ -11113,16 +11128,16 @@ module.exports =
 	        prev[__next] = next;
 	    }
 	    object[__prev] = void 0;
-	
+
 	    // Insert into head position
 	    root[__head] = object;
 	    object[__next] = head;
 	    head[__prev] = object;
 	}
-	
+
 	function lruSplice(model, object) {
 	    var root = model._root;
-	
+
 	    // Its in the cache.  Splice out.
 	    var prev = object[__prev];
 	    var next = object[__next];
@@ -11133,7 +11148,7 @@ module.exports =
 	        prev[__next] = next;
 	    }
 	    object[__prev] = void 0;
-	
+
 	    if (object === root[__head]) {
 	        root[__head] = void 0;
 	    }
@@ -11143,7 +11158,7 @@ module.exports =
 	    object[__invalidated] = true;
 	    root.expired.push(object);
 	}
-	
+
 	module.exports = {
 	    promote: lruPromote,
 	    splice: lruSplice
@@ -11156,7 +11171,7 @@ module.exports =
 
 	// Copies the node
 	var prefix = __webpack_require__(39);
-	
+
 	module.exports = function clone(node) {
 	    var outValue, i, len;
 	    var keys = Object.keys(node);
@@ -11170,7 +11185,7 @@ module.exports =
 	    }
 	    return outValue;
 	};
-	
+
 
 
 /***/ },
@@ -11210,12 +11225,12 @@ module.exports =
 	    this.boundPath = boundPath;
 	    this.shortedPath = shortedPath;
 	}
-	
+
 	// instanceof will be an error, but stack will be correct because its defined in the constructor.
 	InvalidModelError.prototype = new Error();
 	InvalidModelError.prototype.name = NAME;
 	InvalidModelError.message = MESSAGE;
-	
+
 	module.exports = InvalidModelError;
 
 
@@ -11228,11 +11243,11 @@ module.exports =
 	var getType = __webpack_require__(103);
 	var getSize = __webpack_require__(63);
 	var getTimestamp = __webpack_require__(64);
-	
+
 	var isExpired = __webpack_require__(65);
 	var isPrimitive = __webpack_require__(55);
 	var isFunction = __webpack_require__(14);
-	
+
 	var wrapNode = __webpack_require__(66);
 	var expireNode = __webpack_require__(56);
 	var insertNode = __webpack_require__(81);
@@ -11240,14 +11255,14 @@ module.exports =
 	var updateNodeAncestors = __webpack_require__(88);
 	var updateBackReferenceVersions = __webpack_require__(89);
 	var reconstructPath = __webpack_require__(90);
-	
+
 	module.exports = function mergeValueOrInsertBranch(
 	    parent, node, key, value,
 	    branch, reference, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var type = getType(node, reference);
-	
+
 	    if (branch || reference) {
 	        if (type && isExpired(node)) {
 	            type = "expired";
@@ -11273,21 +11288,21 @@ module.exports =
 	            isDistinct = !comparator(node, message, optimizedPath.slice(0, optimizedPath.index));
 	        }
 	        if (isDistinct) {
-	
+
 	            if (mType === $error && isFunction(errorSelector)) {
 	                message = errorSelector(reconstructPath(requestedPath, key), message);
 	            }
-	
+
 	            message = wrapNode(message, mType, mType ? message.value : message);
-	
+
 	            var sizeOffset = getSize(node) - getSize(message);
-	
+
 	            node = replaceNode(node, message, parent, key, lru);
 	            parent = updateNodeAncestors(parent, sizeOffset, lru, version);
 	            node = insertNode(node, parent, key, version);
 	        }
 	    }
-	
+
 	    return node;
 	};
 
@@ -11297,7 +11312,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var isObject = __webpack_require__(16);
-	
+
 	module.exports = function getType(node, anyType) {
 	    var type = isObject(node) && node.$type || void 0;
 	    if (anyType && type) {
@@ -11313,7 +11328,7 @@ module.exports =
 
 	var RequestTypes = __webpack_require__(105);
 	var GetRequest = __webpack_require__(106);
-	
+
 	/**
 	 * The request queue is responsible for queuing the operations to
 	 * the model"s dataSource.
@@ -11326,7 +11341,7 @@ module.exports =
 	    this.scheduler = scheduler;
 	    this.requests = this._requests = [];
 	}
-	
+
 	RequestQueueV2.prototype = {
 	    /**
 	     * Sets the scheduler, but will not affect any current requests.
@@ -11334,7 +11349,7 @@ module.exports =
 	    setScheduler: function(scheduler) {
 	        this.scheduler = scheduler;
 	    },
-	
+
 	    /**
 	     * Creates a get request to the dataSource.  Depending on the current
 	     * scheduler is how the getRequest will be flushed.
@@ -11352,19 +11367,19 @@ module.exports =
 	        var rRemainingPaths = requestedPaths;
 	        var disposed = false;
 	        var request;
-	
+
 	        for (i = 0, len = requests.length; i < len; ++i) {
 	            request = requests[i];
 	            if (request.type !== RequestTypes.GetRequest) {
 	                continue;
 	            }
-	
+
 	            // The request has been sent, attempt to jump on the request
 	            // if possible.
 	            if (request.sent) {
 	                var results = request.add(
 	                    rRemainingPaths, oRemainingPaths, refCountCallback);
-	
+
 	                // Checks to see if the results were successfully inserted
 	                // into the outgoing results.  Then our paths will be reduced
 	                // to the complement.
@@ -11375,7 +11390,7 @@ module.exports =
 	                    ++count;
 	                }
 	            }
-	
+
 	            // If there is a non sent request, then we can batch and leave.
 	            else {
 	                request.batch(
@@ -11384,13 +11399,13 @@ module.exports =
 	                rRemainingPaths = [];
 	                ++count;
 	            }
-	
+
 	            // If there are no more remaining paths then exit the loop.
 	            if (!oRemainingPaths.length) {
 	                break;
 	            }
 	        }
-	
+
 	        // After going through all the available requests if there are more
 	        // paths to process then a new request must be made.
 	        if (oRemainingPaths.length) {
@@ -11401,29 +11416,29 @@ module.exports =
 	                rRemainingPaths, oRemainingPaths, refCountCallback);
 	            disposables[disposables.length] = disposable;
 	        }
-	
+
 	        // This is a simple refCount callback.
 	        function refCountCallback() {
 	            if (disposed) {
 	                return;
 	            }
-	
+
 	            --count;
-	
+
 	            // If the count becomes 0, then its time to notify the
 	            // listener that the request is done.
 	            if (count === 0) {
 	                cb();
 	            }
 	        }
-	
+
 	        // When disposing the request all of the outbound requests will be
 	        // disposed of.
 	        return function() {
 	            if (disposed || count === 0) {
 	                return;
 	            }
-	
+
 	            disposed = true;
 	            var length = disposables.length;
 	            for (var idx = 0; idx < length; ++idx) {
@@ -11431,7 +11446,7 @@ module.exports =
 	            }
 	        };
 	    },
-	
+
 	    /**
 	     * Removes the request from the request
 	     */
@@ -11446,7 +11461,7 @@ module.exports =
 	        }
 	    }
 	};
-	
+
 	module.exports = RequestQueueV2;
 
 
@@ -11471,7 +11486,7 @@ module.exports =
 	var setPathValues = __webpack_require__(91);
 	var $error = __webpack_require__(62);
 	var emptyArray = [];
-	
+
 	/**
 	 * Creates a new GetRequest.  This GetRequest takes a scheduler and
 	 * the request queue.  Once the scheduler fires, all batched requests
@@ -11487,7 +11502,7 @@ module.exports =
 	    this.requestQueue = requestQueue;
 	    this.id = ++REQUEST_ID;
 	    this.type = GetRequestType;
-	
+
 	    this._scheduler = scheduler;
 	    this._pathMap = {};
 	    this._optimizedPaths = [];
@@ -11498,7 +11513,7 @@ module.exports =
 	    this._collapsed = null;
 	    this._disposed = false;
 	};
-	
+
 	GetRequestV2.prototype = {
 	    /**
 	     * batches the paths that are passed in.  Once the request is complete,
@@ -11514,28 +11529,28 @@ module.exports =
 	        var rPaths = self._requestedPaths;
 	        var callbacks = self._callbacks;
 	        var idx = oPaths.length;
-	
+
 	        // If its not sent, simply add it to the requested paths
 	        // and callbacks.
 	        oPaths[idx] = optimizedPaths;
 	        rPaths[idx] = requestedPaths;
 	        callbacks[idx] = callback;
 	        ++self._count;
-	
+
 	        // If it has not been scheduled, then schedule the action
 	        if (!self.scheduled) {
 	            self.scheduled = true;
-	
+
 	            self._disposable = self._scheduler.schedule(function() {
 	                flushGetRequest(self, oPaths, function(err, data) {
 	                    self.requestQueue.removeRequest(self);
 	                    self._disposed = true;
-	
+
 	                    // If there is at least one callback remaining, then
 	                    // callback the callbacks.
 	                    if (self._count) {
 	                        self._merge(rPaths, err, data);
-	
+
 	                        // Call the callbacks.  The first one inserts all the
 	                        // data so that the rest do not have consider if their
 	                        // data is present or not.
@@ -11549,13 +11564,13 @@ module.exports =
 	                });
 	            });
 	        }
-	
+
 	        // Disposes this batched request.  This does not mean that the
 	        // entire request has been disposed, but just the local one, if all
 	        // requests are disposed, then the outer disposable will be removed.
 	        return createDisposable(self, idx);
 	    },
-	
+
 	    /**
 	     * Attempts to add paths to the outgoing request.  If there are added
 	     * paths then the request callback will be added to the callback list.
@@ -11568,7 +11583,7 @@ module.exports =
 	        var complementTuple = complement(requested, optimized, self._pathMap);
 	        var optimizedComplement;
 	        var requestedComplement;
-	
+
 	        if (complementTuple) {
 	            requestedComplement = complementTuple[2];
 	            optimizedComplement = complementTuple[1];
@@ -11576,10 +11591,10 @@ module.exports =
 	            requestedComplement = requested;
 	            optimizedComplement = optimized;
 	        }
-	
+
 	        var inserted = false;
 	        var disposable = false;
-	
+
 	        // If the out paths is less than the passed in paths, then there
 	        // has been an intersection and the complement has been returned.
 	        // Therefore, this can be deduped across requests.
@@ -11590,13 +11605,13 @@ module.exports =
 	            self._requestedPaths[idx] = complementTuple[0];
 	            self._optimizedPaths[idx] = [];
 	            ++self._count;
-	
+
 	            disposable = createDisposable(self, idx);
 	        }
-	
+
 	        return [inserted, requestedComplement, optimizedComplement, disposable];
 	    },
-	
+
 	    /**
 	     * merges the response into the model"s cache.
 	     */
@@ -11607,16 +11622,16 @@ module.exports =
 	        var errorSelector = modelRoot.errorSelector;
 	        var comparator = modelRoot.comparator;
 	        var boundPath = model._path;
-	
+
 	        model._path = emptyArray;
-	
+
 	        // flatten all the requested paths, adds them to the
 	        var nextPaths = flattenRequestedPaths(requested);
-	
+
 	        // Insert errors in every requested position.
 	        if (err) {
 	            var error = err;
-	
+
 	            // Converts errors to objects, a more friendly storage
 	            // of errors.
 	            if (error instanceof Error) {
@@ -11624,7 +11639,7 @@ module.exports =
 	                    message: error.message
 	                };
 	            }
-	
+
 	            // Not all errors are value $types.
 	            if (!error.$type) {
 	                error = {
@@ -11632,7 +11647,7 @@ module.exports =
 	                    value: error
 	                };
 	            }
-	
+
 	            var pathValues = nextPaths.map(function(x) {
 	                return {
 	                    path: x,
@@ -11641,7 +11656,7 @@ module.exports =
 	            });
 	            setPathValues(model, pathValues, null, errorSelector, comparator);
 	        }
-	
+
 	        // Insert the jsonGraph from the dataSource.
 	        else {
 	            setJSONGraphs(model, [{
@@ -11649,12 +11664,12 @@ module.exports =
 	                jsonGraph: data.jsonGraph
 	            }], null, errorSelector, comparator);
 	        }
-	
+
 	        // return the model"s boundPath
 	        model._path = boundPath;
 	    }
 	};
-	
+
 	// Creates a more efficient closure of the things that are
 	// needed.  So the request and the idx.  Also prevents code
 	// duplication.
@@ -11664,12 +11679,12 @@ module.exports =
 	        if (disposed || request._disposed) {
 	            return;
 	        }
-	
+
 	        disposed = true;
 	        request._callbacks[idx] = null;
 	        request._optimizedPaths[idx] = [];
 	        request._requestedPaths[idx] = [];
-	
+
 	        // If there are no more requests, then dispose all of the request.
 	        var count = --request._count;
 	        if (count === 0 && !request.sent) {
@@ -11678,7 +11693,7 @@ module.exports =
 	        }
 	    };
 	}
-	
+
 	function flattenRequestedPaths(requested) {
 	    var out = [];
 	    var outLen = -1;
@@ -11690,7 +11705,7 @@ module.exports =
 	    }
 	    return out;
 	}
-	
+
 	module.exports = GetRequestV2;
 
 
@@ -11700,7 +11715,7 @@ module.exports =
 
 	var hasIntersection = __webpack_require__(27).hasIntersection;
 	var arraySlice = __webpack_require__(108);
-	
+
 	/**
 	 * creates the complement of the requested and optimized paths
 	 * based on the provided tree.
@@ -11714,15 +11729,15 @@ module.exports =
 	    var requestedIntersection = [];
 	    var intersectionLength = -1, complementLength = -1;
 	    var intersectionFound = false;
-	
+
 	    for (var i = 0, len = optimized.length; i < len; ++i) {
 	        // If this does not intersect then add it to the output.
 	        var path = optimized[i];
 	        var subTree = tree[path.length];
-	
+
 	        // If there is no subtree to look into or there is no intersection.
 	        if (!subTree || !hasIntersection(subTree, path, 0)) {
-	
+
 	            if (intersectionFound) {
 	                optimizedComplement[++complementLength] = path;
 	                requestedComplement[complementLength] = requested[i];
@@ -11736,16 +11751,16 @@ module.exports =
 	                requestedComplement = arraySlice(requested, 0, i);
 	                optimizedComplement = arraySlice(optimized, 0, i);
 	            }
-	
+
 	            requestedIntersection[++intersectionLength] = requested[i];
 	            intersectionFound = true;
 	        }
 	    }
-	
+
 	    if (!intersectionFound) {
 	        return null;
 	    }
-	
+
 	    return [requestedIntersection, optimizedComplement, requestedComplement ];
 	};
 
@@ -11758,15 +11773,15 @@ module.exports =
 	    var index = indexArg || 0;
 	    var i = -1;
 	    var n = array.length - index;
-	
+
 	    if (n < 0) {
 	        n = 0;
 	    }
-	
+
 	    if (endArg > 0 && n > endArg) {
 	        n = endArg;
 	    }
-	
+
 	    var array2 = new Array(n);
 	    while (++i < n) {
 	        array2[i] = array[i + index];
@@ -11782,7 +11797,7 @@ module.exports =
 	var pathUtils = __webpack_require__(27);
 	var toTree = pathUtils.toTree;
 	var toPaths = pathUtils.toPaths;
-	
+
 	/**
 	 * Flushes the current set of requests.  This will send the paths to the
 	 * dataSource.  * The results of the dataSource will be sent to callback which
@@ -11797,14 +11812,14 @@ module.exports =
 	        request.requestQueue.removeRequest(request);
 	        return;
 	    }
-	
+
 	    request.sent = true;
 	    request.scheduled = false;
-	
+
 	    // TODO: Move this to the collapse algorithm,
 	    // TODO: we should have a collapse that returns the paths and
 	    // TODO: the trees.
-	
+
 	    // Take all the paths and add them to the pathMap by length.
 	    // Since its a list of paths
 	    var pathMap = request._pathMap;
@@ -11815,7 +11830,7 @@ module.exports =
 	        for (var j = 0, pathLen = paths.length; j < pathLen; ++j) {
 	            var pathSet = paths[j];
 	            var len = pathSet.length;
-	
+
 	            if (!pathMap[len]) {
 	                pathMap[len] = [pathSet];
 	            } else {
@@ -11824,7 +11839,7 @@ module.exports =
 	            }
 	        }
 	    }
-	
+
 	    // now that we have them all by length, convert each to a tree.
 	    var pathMapKeys = Object.keys(pathMap);
 	    var pathMapIdx = 0, pathMapLen = pathMapKeys.length;
@@ -11832,12 +11847,12 @@ module.exports =
 	        var pathMapKey = pathMapKeys[pathMapIdx];
 	        pathMap[pathMapKey] = toTree(pathMap[pathMapKey]);
 	    }
-	
+
 	    // Take the pathMapTree and create the collapsed paths and send those
 	    // off to the server.
 	    var collapsedPaths = request._collasped = toPaths(pathMap);
 	    var jsonGraphData;
-	
+
 	    // Make the request.
 	    // You are probably wondering why this is not cancellable.  If a request
 	    // goes out, and all the requests are removed, the request should not be
@@ -11857,7 +11872,7 @@ module.exports =
 	            callback(null, jsonGraphData);
 	        });
 	};
-	
+
 
 
 /***/ },
@@ -11865,17 +11880,17 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var falcor = __webpack_require__(2);
-	
+
 	var Rx = __webpack_require__(18) && __webpack_require__(111);
 	var Observable = Rx.Observable;
-	
+
 	var arraySlice = __webpack_require__(108);
-	
+
 	var noop = __webpack_require__(113);
-	
+
 	var jsongMixin = { outputFormat: { value: "AsJSONG" } };
 	var progressiveMixin = { isProgressive: { value: true } };
-	
+
 	/**
 	 * A ModelResponse is a container for the results of a get, set, or call operation performed on a Model. The ModelResponse provides methods which can be used to specify the output format of the data retrieved from a Model, as well as how that data is delivered.
 	 * @constructor ModelResponse
@@ -11884,7 +11899,7 @@ module.exports =
 	function ModelResponse(subscribe) {
 	    this._subscribe = subscribe;
 	}
-	
+
 	ModelResponse.create = function create(model, args) {
 	    var response = new ModelResponse(subscribeToResponse);
 	    // TODO: make these private
@@ -11893,11 +11908,11 @@ module.exports =
 	    response.model = model;
 	    return response;
 	};
-	
+
 	ModelResponse.prototype = Object.create(Observable.prototype);
-	
+
 	ModelResponse.prototype.constructor = ModelResponse;
-	
+
 	ModelResponse.prototype._mixin = function mixin() {
 	    var self = this;
 	    var mixins = arraySlice(arguments);
@@ -11907,7 +11922,7 @@ module.exports =
 	        }, observer));
 	    });
 	};
-	
+
 	/**
 	 * Converts the data format of the data in a JSONGraph Model response to a stream of path values.
 	 * @name toPathValues
@@ -11923,7 +11938,7 @@ module.exports =
 	    }
 	  }
 	});
-	
+
 	model.
 	  get(["user",["name", "surname"]]).
 	  toPathValues().
@@ -11936,11 +11951,11 @@ module.exports =
 	"{\"path\":[\"user\",\"name\"],\"value\":\"Steve\"}"
 	"{\"path\":[\"user\",\"surname\"],\"value\":\"McGuire\"}"
 	 */
-	
+
 	ModelResponse.prototype._toJSONG = function toJSONG() {
 	    return this._mixin(jsongMixin);
 	};
-	
+
 	/**
 	 * The progressively method breaks the response up into two parts: the data immediately available in the Model cache, and the data in the Model cache after the missing data has been retrieved from the DataSource.
 	 * The progressively method creates a ModelResponse that immediately returns the requested data that is available in the Model cache. If any requested paths are not available in the cache, the ModelResponse will send another JSON message with all of the requested data after it has been retrieved from the DataSource.
@@ -11958,7 +11973,7 @@ module.exports =
 	    }
 	  }
 	})).asDataSource();
-	
+
 	var model = new falcor.Model({
 	  source: dataSource,
 	  cache: {
@@ -11968,7 +11983,7 @@ module.exports =
 	    }
 	  }
 	});
-	
+
 	model.
 	  get(["user",["name", "surname", "age"]]).
 	  progressively().
@@ -11977,7 +11992,7 @@ module.exports =
 	  subscribe(function(json){
 	    console.log(JSON.stringify(json,null,4));
 	  });
-	
+
 	// prints...
 	// {
 	//     "json": {
@@ -12001,7 +12016,7 @@ module.exports =
 	ModelResponse.prototype.progressively = function progressively() {
 	    return this._mixin(progressiveMixin);
 	};
-	
+
 	ModelResponse.prototype.subscribe = function subscribe(a, b, c) {
 	    var observer = a;
 	    if (!observer || typeof observer !== "object") {
@@ -12017,7 +12032,7 @@ module.exports =
 	            return { dispose: noop };
 	    }
 	};
-	
+
 	ModelResponse.prototype.then = function then(onNext, onError) {
 	    var self = this;
 	    return new falcor.Promise(function(resolve, reject) {
@@ -12042,26 +12057,26 @@ module.exports =
 	        );
 	    }).then(onNext, onError);
 	};
-	
+
 	function subscribeToResponse(observer) {
-	
+
 	    var model = this.model;
 	    var response = new this.type();
-	
+
 	    response.model = model;
 	    response.args = this.args;
 	    response.outputFormat = observer.outputFormat || "AsPathMap";
 	    response.isProgressive = observer.isProgressive || false;
 	    response.subscribeCount = 0;
 	    response.subscribeLimit = observer.retryLimit || 10;
-	
+
 	    return (response
 	        .initialize()
 	        .invokeSourceRequest(model)
 	        .ensureCollect(model)
 	        .subscribe(observer));
 	}
-	
+
 	module.exports = ModelResponse;
 
 
@@ -12070,7 +12085,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(module, global) {// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-	
+
 	;(function (factory) {
 	    var objectTypes = {
 	        'boolean': false,
@@ -12080,17 +12095,17 @@ module.exports =
 	        'string': false,
 	        'undefined': false
 	    };
-	
+
 	    var root = (objectTypes[typeof window] && window) || this,
 	        freeExports = objectTypes[typeof exports] && exports && !exports.nodeType && exports,
 	        freeModule = objectTypes[typeof module] && module && !module.nodeType && module,
 	        moduleExports = freeModule && freeModule.exports === freeExports && freeExports,
 	        freeGlobal = objectTypes[typeof global] && global;
-	
+
 	    if (freeGlobal && (freeGlobal.global === freeGlobal || freeGlobal.window === freeGlobal)) {
 	        root = freeGlobal;
 	    }
-	
+
 	    // Because of build optimizers
 	    if (true) {
 	        !(__WEBPACK_AMD_DEFINE_ARRAY__ = [__webpack_require__(112)], __WEBPACK_AMD_DEFINE_RESULT__ = function (Rx, exports) {
@@ -12102,7 +12117,7 @@ module.exports =
 	        root.Rx = factory(root, {}, root.Rx);
 	    }
 	}.call(this, function (root, exp, Rx, undefined) {
-	
+
 	  // References
 	  var Observable = Rx.Observable,
 	    observableProto = Observable.prototype,
@@ -12126,7 +12141,7 @@ module.exports =
 	    EmptyError = Rx.EmptyError,
 	    ObservableBase = Rx.ObservableBase,
 	    ArgumentOutOfRangeError = Rx.ArgumentOutOfRangeError;
-	
+
 	  var errorObj = {e: {}};
 	  var tryCatchTarget;
 	  function tryCatcher() {
@@ -12145,7 +12160,7 @@ module.exports =
 	  function thrower(e) {
 	    throw e;
 	  }
-	
+
 	  function extremaBy(source, keySelector, comparer) {
 	    return new AnonymousObservable(function (o) {
 	      var hasValue = false, lastKey = null, list = [];
@@ -12180,12 +12195,12 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  function firstOnly(x) {
 	    if (x.length === 0) { throw new EmptyError(); }
 	    return x[0];
 	  }
-	
+
 	  /**
 	   * Applies an accumulator function over an observable sequence, returning the result of the aggregation as a single element in the result sequence. The specified seed value is used as the initial accumulator value.
 	   * For aggregation behavior with incremental intermediate results, see Observable.scan.
@@ -12229,7 +12244,7 @@ module.exports =
 	      );
 	    }, source);
 	  };
-	
+
 	  var ReduceObservable = (function(__super__) {
 	    inherits(ReduceObservable, __super__);
 	    function ReduceObservable(source, acc, hasSeed, seed) {
@@ -12239,11 +12254,11 @@ module.exports =
 	      this.seed = seed;
 	      __super__.call(this);
 	    }
-	
+
 	    ReduceObservable.prototype.subscribeCore = function(observer) {
 	      return this.source.subscribe(new InnerObserver(observer,this));
 	    };
-	
+
 	    function InnerObserver(o, parent) {
 	      this.o = o;
 	      this.acc = parent.acc;
@@ -12286,10 +12301,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return ReduceObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Applies an accumulator function over an observable sequence, returning the result of the aggregation as a single element in the result sequence. The specified seed value is used as the initial accumulator value.
 	  * For aggregation behavior with incremental intermediate results, see Observable.scan.
@@ -12305,7 +12320,7 @@ module.exports =
 	    }
 	    return new ReduceObservable(this, accumulator, hasSeed, seed);
 	  };
-	
+
 	  /**
 	   * Determines whether any element of an observable sequence satisfies a condition if present, else if any items are in the sequence.
 	   * @param {Function} [predicate] A function to test each element for a condition.
@@ -12325,13 +12340,13 @@ module.exports =
 	        });
 	      }, source);
 	  };
-	
+
 	  /** @deprecated use #some instead */
 	  observableProto.any = function () {
 	    //deprecate('any', 'some');
 	    return this.some.apply(this, arguments);
 	  };
-	
+
 	  /**
 	   * Determines whether an observable sequence is empty.
 	   * @returns {Observable} An observable sequence containing a single element determining whether the source sequence is empty.
@@ -12339,7 +12354,7 @@ module.exports =
 	  observableProto.isEmpty = function () {
 	    return this.any().map(not);
 	  };
-	
+
 	  /**
 	   * Determines whether all elements of an observable sequence satisfy a condition.
 	   * @param {Function} [predicate] A function to test each element for a condition.
@@ -12349,13 +12364,13 @@ module.exports =
 	  observableProto.every = function (predicate, thisArg) {
 	    return this.filter(function (v) { return !predicate(v); }, thisArg).some().map(not);
 	  };
-	
+
 	  /** @deprecated use #every instead */
 	  observableProto.all = function () {
 	    //deprecate('all', 'every');
 	    return this.every.apply(this, arguments);
 	  };
-	
+
 	  /**
 	   * Determines whether an observable sequence includes a specified element with an optional equality comparer.
 	   * @param searchElement The value to locate in the source sequence.
@@ -12389,7 +12404,7 @@ module.exports =
 	        });
 	    }, this);
 	  };
-	
+
 	  /**
 	   * @deprecated use #includes instead.
 	   */
@@ -12397,7 +12412,7 @@ module.exports =
 	    //deprecate('contains', 'includes');
 	    observableProto.includes(searchElement, fromIndex);
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence containing a value that represents how many elements in the specified observable sequence satisfy a condition if provided, else the count of items.
 	   * @example
@@ -12412,7 +12427,7 @@ module.exports =
 	      this.filter(predicate, thisArg).count() :
 	      this.reduce(function (count) { return count + 1; }, 0);
 	  };
-	
+
 	  /**
 	   * Returns the first index at which a given element can be found in the observable sequence, or -1 if it is not present.
 	   * @param {Any} searchElement Element to locate in the array.
@@ -12444,7 +12459,7 @@ module.exports =
 	        });
 	    }, source);
 	  };
-	
+
 	  /**
 	   * Computes the sum of a sequence of values that are obtained by invoking an optional transform function on each element of the input sequence, else if not specified computes the sum on each item in the sequence.
 	   * @param {Function} [selector] A transform function to apply to each element.
@@ -12456,7 +12471,7 @@ module.exports =
 	      this.map(keySelector, thisArg).sum() :
 	      this.reduce(function (prev, curr) { return prev + curr; }, 0);
 	  };
-	
+
 	  /**
 	   * Returns the elements in an observable sequence with the minimum key value according to the specified comparer.
 	   * @example
@@ -12470,7 +12485,7 @@ module.exports =
 	    comparer || (comparer = defaultSubComparer);
 	    return extremaBy(this, keySelector, function (x, y) { return comparer(x, y) * -1; });
 	  };
-	
+
 	  /**
 	   * Returns the minimum element in an observable sequence according to the optional comparer else a default greater than less than check.
 	   * @example
@@ -12482,7 +12497,7 @@ module.exports =
 	  observableProto.min = function (comparer) {
 	    return this.minBy(identity, comparer).map(function (x) { return firstOnly(x); });
 	  };
-	
+
 	  /**
 	   * Returns the elements in an observable sequence with the maximum  key value according to the specified comparer.
 	   * @example
@@ -12496,7 +12511,7 @@ module.exports =
 	    comparer || (comparer = defaultSubComparer);
 	    return extremaBy(this, keySelector, comparer);
 	  };
-	
+
 	  /**
 	   * Returns the maximum value in an observable sequence according to the specified comparer.
 	   * @example
@@ -12508,7 +12523,7 @@ module.exports =
 	  observableProto.max = function (comparer) {
 	    return this.maxBy(identity, comparer).map(function (x) { return firstOnly(x); });
 	  };
-	
+
 	  /**
 	   * Computes the average of an observable sequence of values that are in the sequence or obtained by invoking a transform function on each element of the input sequence if present.
 	   * @param {Function} [selector] A transform function to apply to each element.
@@ -12528,7 +12543,7 @@ module.exports =
 	        return s.sum / s.count;
 	      });
 	  };
-	
+
 	  /**
 	   *  Determines whether two sequences are equal by comparing the elements pairwise using a specified equality comparer.
 	   *
@@ -12578,7 +12593,7 @@ module.exports =
 	          }
 	        }
 	      });
-	
+
 	      (isArrayLike(second) || isIterable(second)) && (second = observableFrom(second));
 	      isPromise(second) && (second = observableFromPromise(second));
 	      var subscription2 = second.subscribe(function (x) {
@@ -12616,7 +12631,7 @@ module.exports =
 	      return new CompositeDisposable(subscription1, subscription2);
 	    }, first);
 	  };
-	
+
 	  function elementAtOrDefault(source, index, hasDefault, defaultValue) {
 	    if (index < 0) { throw new ArgumentOutOfRangeError(); }
 	    return new AnonymousObservable(function (o) {
@@ -12636,7 +12651,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the element at a specified index in a sequence.
 	   * @example
@@ -12647,7 +12662,7 @@ module.exports =
 	  observableProto.elementAt =  function (index) {
 	    return elementAtOrDefault(this, index, false);
 	  };
-	
+
 	  /**
 	   * Returns the element at a specified index in a sequence or a default value if the index is out of range.
 	   * @example
@@ -12660,7 +12675,7 @@ module.exports =
 	  observableProto.elementAtOrDefault = function (index, defaultValue) {
 	    return elementAtOrDefault(this, index, true, defaultValue);
 	  };
-	
+
 	  function singleOrDefaultAsync(source, hasDefault, defaultValue) {
 	    return new AnonymousObservable(function (o) {
 	      var value = defaultValue, seenValue = false;
@@ -12681,7 +12696,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the only element of an observable sequence that satisfies the condition in the optional predicate, and reports an exception if there is not exactly one element in the observable sequence.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -12693,7 +12708,7 @@ module.exports =
 	      this.where(predicate, thisArg).single() :
 	      singleOrDefaultAsync(this, false);
 	  };
-	
+
 	  /**
 	   * Returns the only element of an observable sequence that matches the predicate, or a default value if no such element exists; this method reports an exception if there is more than one element in the observable sequence.
 	   * @example
@@ -12712,7 +12727,7 @@ module.exports =
 	      this.filter(predicate, thisArg).singleOrDefault(null, defaultValue) :
 	      singleOrDefaultAsync(this, true, defaultValue);
 	  };
-	
+
 	  function firstOrDefaultAsync(source, hasDefault, defaultValue) {
 	    return new AnonymousObservable(function (o) {
 	      return source.subscribe(function (x) {
@@ -12728,7 +12743,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the first element of an observable sequence that satisfies the condition in the predicate if present else the first item in the sequence.
 	   * @example
@@ -12743,7 +12758,7 @@ module.exports =
 	      this.where(predicate, thisArg).first() :
 	      firstOrDefaultAsync(this, false);
 	  };
-	
+
 	  /**
 	   * Returns the first element of an observable sequence that satisfies the condition in the predicate, or a default value if no such element exists.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -12756,7 +12771,7 @@ module.exports =
 	      this.where(predicate).firstOrDefault(null, defaultValue) :
 	      firstOrDefaultAsync(this, true, defaultValue);
 	  };
-	
+
 	  function lastOrDefaultAsync(source, hasDefault, defaultValue) {
 	    return new AnonymousObservable(function (o) {
 	      var value = defaultValue, seenValue = false;
@@ -12773,7 +12788,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the last element of an observable sequence that satisfies the condition in the predicate if specified, else the last element.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -12785,7 +12800,7 @@ module.exports =
 	      this.where(predicate, thisArg).last() :
 	      lastOrDefaultAsync(this, false);
 	  };
-	
+
 	  /**
 	   * Returns the last element of an observable sequence that satisfies the condition in the predicate, or a default value if no such element exists.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -12798,7 +12813,7 @@ module.exports =
 	      this.where(predicate, thisArg).lastOrDefault(null, defaultValue) :
 	      lastOrDefaultAsync(this, true, defaultValue);
 	  };
-	
+
 	  function findValue (source, predicate, thisArg, yieldIndex) {
 	    var callback = bindCallback(predicate, thisArg, 3);
 	    return new AnonymousObservable(function (o) {
@@ -12823,7 +12838,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Searches for an element that matches the conditions defined by the specified predicate, and returns the first occurrence within the entire Observable sequence.
 	   * @param {Function} predicate The predicate that defines the conditions of the element to search for.
@@ -12833,7 +12848,7 @@ module.exports =
 	  observableProto.find = function (predicate, thisArg) {
 	    return findValue(this, predicate, thisArg, false);
 	  };
-	
+
 	  /**
 	   * Searches for an element that matches the conditions defined by the specified predicate, and returns
 	   * an Observable sequence with the zero-based index of the first occurrence within the entire Observable sequence.
@@ -12844,7 +12859,7 @@ module.exports =
 	  observableProto.findIndex = function (predicate, thisArg) {
 	    return findValue(this, predicate, thisArg, true);
 	  };
-	
+
 	  /**
 	   * Converts the observable sequence to a Set if it exists.
 	   * @returns {Observable} An observable sequence with a single value of a Set containing the values from the observable sequence.
@@ -12863,7 +12878,7 @@ module.exports =
 	        });
 	    }, source);
 	  };
-	
+
 	  /**
 	  * Converts the observable sequence to a Map if it exists.
 	  * @param {Function} keySelector A function which produces the key for the Map.
@@ -12884,7 +12899,7 @@ module.exports =
 	            o.onError(e);
 	            return;
 	          }
-	
+
 	          var element = x;
 	          if (elementSelector) {
 	            try {
@@ -12894,7 +12909,7 @@ module.exports =
 	              return;
 	            }
 	          }
-	
+
 	          m.set(key, element);
 	        },
 	        function (e) { o.onError(e); },
@@ -12904,10 +12919,10 @@ module.exports =
 	        });
 	    }, source);
 	  };
-	
+
 	    return Rx;
 	}));
-	
+
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(19)(module), (function() { return this; }())))
 
 /***/ },
@@ -12915,9 +12930,9 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(module, global, process) {// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-	
+
 	;(function (undefined) {
-	
+
 	  var objectTypes = {
 	    'boolean': false,
 	    'function': true,
@@ -12926,17 +12941,17 @@ module.exports =
 	    'string': false,
 	    'undefined': false
 	  };
-	
+
 	  var root = (objectTypes[typeof window] && window) || this,
 	    freeExports = objectTypes[typeof exports] && exports && !exports.nodeType && exports,
 	    freeModule = objectTypes[typeof module] && module && !module.nodeType && module,
 	    moduleExports = freeModule && freeModule.exports === freeExports && freeExports,
 	    freeGlobal = objectTypes[typeof global] && global;
-	
+
 	  if (freeGlobal && (freeGlobal.global === freeGlobal || freeGlobal.window === freeGlobal)) {
 	    root = freeGlobal;
 	  }
-	
+
 	  var Rx = {
 	      internals: {},
 	      config: {
@@ -12944,7 +12959,7 @@ module.exports =
 	      },
 	      helpers: { }
 	  };
-	
+
 	  // Defaults
 	  var noop = Rx.helpers.noop = function () { },
 	    notDefined = Rx.helpers.notDefined = function (x) { return typeof x === 'undefined'; },
@@ -12960,23 +12975,23 @@ module.exports =
 	    asArray = Rx.helpers.asArray = function () { return Array.prototype.slice.call(arguments); },
 	    not = Rx.helpers.not = function (a) { return !a; },
 	    isFunction = Rx.helpers.isFunction = (function () {
-	
+
 	      var isFn = function (value) {
 	        return typeof value == 'function' || false;
 	      }
-	
+
 	      // fallback for older versions of Chrome and Safari
 	      if (isFn(/x/)) {
 	        isFn = function(value) {
 	          return typeof value == 'function' && toString.call(value) == '[object Function]';
 	        };
 	      }
-	
+
 	      return isFn;
 	    }());
-	
+
 	  function cloneArray(arr) { for(var a = [], i = 0, len = arr.length; i < len; i++) { a.push(arr[i]); } return a;}
-	
+
 	  Rx.config.longStackSupport = false;
 	  var hasStacks = false;
 	  try {
@@ -12984,12 +12999,12 @@ module.exports =
 	  } catch (e) {
 	    hasStacks = !!e.stack;
 	  }
-	
+
 	  // All code after this point will be filtered from stack traces reported by RxJS
 	  var rStartingLine = captureLine(), rFileName;
-	
+
 	  var STACK_JUMP_SEPARATOR = "From previous event:";
-	
+
 	  function makeStackTraceLong(error, observable) {
 	      // If possible, transform the error stack trace by removing Node and RxJS
 	      // cruft, then concatenating with the stack trace of `observable`.
@@ -13007,45 +13022,45 @@ module.exports =
 	          }
 	        }
 	        stacks.unshift(error.stack);
-	
+
 	        var concatedStacks = stacks.join("\n" + STACK_JUMP_SEPARATOR + "\n");
 	        error.stack = filterStackString(concatedStacks);
 	    }
 	  }
-	
+
 	  function filterStackString(stackString) {
 	    var lines = stackString.split("\n"),
 	        desiredLines = [];
 	    for (var i = 0, len = lines.length; i < len; i++) {
 	      var line = lines[i];
-	
+
 	      if (!isInternalFrame(line) && !isNodeFrame(line) && line) {
 	        desiredLines.push(line);
 	      }
 	    }
 	    return desiredLines.join("\n");
 	  }
-	
+
 	  function isInternalFrame(stackLine) {
 	    var fileNameAndLineNumber = getFileNameAndLineNumber(stackLine);
 	    if (!fileNameAndLineNumber) {
 	      return false;
 	    }
 	    var fileName = fileNameAndLineNumber[0], lineNumber = fileNameAndLineNumber[1];
-	
+
 	    return fileName === rFileName &&
 	      lineNumber >= rStartingLine &&
 	      lineNumber <= rEndingLine;
 	  }
-	
+
 	  function isNodeFrame(stackLine) {
 	    return stackLine.indexOf("(module.js:") !== -1 ||
 	      stackLine.indexOf("(node.js:") !== -1;
 	  }
-	
+
 	  function captureLine() {
 	    if (!hasStacks) { return; }
-	
+
 	    try {
 	      throw new Error();
 	    } catch (e) {
@@ -13053,64 +13068,64 @@ module.exports =
 	      var firstLine = lines[0].indexOf("@") > 0 ? lines[1] : lines[2];
 	      var fileNameAndLineNumber = getFileNameAndLineNumber(firstLine);
 	      if (!fileNameAndLineNumber) { return; }
-	
+
 	      rFileName = fileNameAndLineNumber[0];
 	      return fileNameAndLineNumber[1];
 	    }
 	  }
-	
+
 	  function getFileNameAndLineNumber(stackLine) {
 	    // Named functions: "at functionName (filename:lineNumber:columnNumber)"
 	    var attempt1 = /at .+ \((.+):(\d+):(?:\d+)\)$/.exec(stackLine);
 	    if (attempt1) { return [attempt1[1], Number(attempt1[2])]; }
-	
+
 	    // Anonymous functions: "at filename:lineNumber:columnNumber"
 	    var attempt2 = /at ([^ ]+):(\d+):(?:\d+)$/.exec(stackLine);
 	    if (attempt2) { return [attempt2[1], Number(attempt2[2])]; }
-	
+
 	    // Firefox style: "function@filename:lineNumber or @filename:lineNumber"
 	    var attempt3 = /.*@(.+):(\d+)$/.exec(stackLine);
 	    if (attempt3) { return [attempt3[1], Number(attempt3[2])]; }
 	  }
-	
+
 	  var EmptyError = Rx.EmptyError = function() {
 	    this.message = 'Sequence contains no elements.';
 	    Error.call(this);
 	  };
 	  EmptyError.prototype = Error.prototype;
-	
+
 	  var ObjectDisposedError = Rx.ObjectDisposedError = function() {
 	    this.message = 'Object has been disposed';
 	    Error.call(this);
 	  };
 	  ObjectDisposedError.prototype = Error.prototype;
-	
+
 	  var ArgumentOutOfRangeError = Rx.ArgumentOutOfRangeError = function () {
 	    this.message = 'Argument out of range';
 	    Error.call(this);
 	  };
 	  ArgumentOutOfRangeError.prototype = Error.prototype;
-	
+
 	  var NotSupportedError = Rx.NotSupportedError = function (message) {
 	    this.message = message || 'This operation is not supported';
 	    Error.call(this);
 	  };
 	  NotSupportedError.prototype = Error.prototype;
-	
+
 	  var NotImplementedError = Rx.NotImplementedError = function (message) {
 	    this.message = message || 'This operation is not implemented';
 	    Error.call(this);
 	  };
 	  NotImplementedError.prototype = Error.prototype;
-	
+
 	  var notImplemented = Rx.helpers.notImplemented = function () {
 	    throw new NotImplementedError();
 	  };
-	
+
 	  var notSupported = Rx.helpers.notSupported = function () {
 	    throw new NotSupportedError();
 	  };
-	
+
 	  // Shim in iterator support
 	  var $iterator$ = (typeof Symbol === 'function' && Symbol.iterator) ||
 	    '_es6shim_iterator_';
@@ -13118,19 +13133,19 @@ module.exports =
 	  if (root.Set && typeof new root.Set()['@@iterator'] === 'function') {
 	    $iterator$ = '@@iterator';
 	  }
-	
+
 	  var doneEnumerator = Rx.doneEnumerator = { done: true, value: undefined };
-	
+
 	  var isIterable = Rx.helpers.isIterable = function (o) {
 	    return o[$iterator$] !== undefined;
 	  }
-	
+
 	  var isArrayLike = Rx.helpers.isArrayLike = function (o) {
 	    return o && o.length !== undefined;
 	  }
-	
+
 	  Rx.helpers.iterator = $iterator$;
-	
+
 	  var bindCallback = Rx.internals.bindCallback = function (func, thisArg, argCount) {
 	    if (typeof thisArg === 'undefined') { return func; }
 	    switch(argCount) {
@@ -13151,12 +13166,12 @@ module.exports =
 	          return func.call(thisArg, value, index, collection);
 	        };
 	    }
-	
+
 	    return function() {
 	      return func.apply(thisArg, arguments);
 	    };
 	  };
-	
+
 	  /** Used to determine if values are of the language type Object */
 	  var dontEnums = ['toString',
 	    'toLocaleString',
@@ -13166,7 +13181,7 @@ module.exports =
 	    'propertyIsEnumerable',
 	    'constructor'],
 	  dontEnumsLength = dontEnums.length;
-	
+
 	  /** `Object#toString` result shortcuts */
 	  var argsClass = '[object Arguments]',
 	    arrayClass = '[object Array]',
@@ -13178,7 +13193,7 @@ module.exports =
 	    objectClass = '[object Object]',
 	    regexpClass = '[object RegExp]',
 	    stringClass = '[object String]';
-	
+
 	  var toString = Object.prototype.toString,
 	    hasOwnProperty = Object.prototype.hasOwnProperty,
 	    supportsArgsClass = toString.call(arguments) == argsClass, // For less <IE9 && FF<4
@@ -13187,46 +13202,46 @@ module.exports =
 	    objectProto = Object.prototype,
 	    stringProto = String.prototype,
 	    propertyIsEnumerable = objectProto.propertyIsEnumerable;
-	
+
 	  try {
 	    supportNodeClass = !(toString.call(document) == objectClass && !({ 'toString': 0 } + ''));
 	  } catch (e) {
 	    supportNodeClass = true;
 	  }
-	
+
 	  var nonEnumProps = {};
 	  nonEnumProps[arrayClass] = nonEnumProps[dateClass] = nonEnumProps[numberClass] = { 'constructor': true, 'toLocaleString': true, 'toString': true, 'valueOf': true };
 	  nonEnumProps[boolClass] = nonEnumProps[stringClass] = { 'constructor': true, 'toString': true, 'valueOf': true };
 	  nonEnumProps[errorClass] = nonEnumProps[funcClass] = nonEnumProps[regexpClass] = { 'constructor': true, 'toString': true };
 	  nonEnumProps[objectClass] = { 'constructor': true };
-	
+
 	  var support = {};
 	  (function () {
 	    var ctor = function() { this.x = 1; },
 	      props = [];
-	
+
 	    ctor.prototype = { 'valueOf': 1, 'y': 1 };
 	    for (var key in new ctor) { props.push(key); }
 	    for (key in arguments) { }
-	
+
 	    // Detect if `name` or `message` properties of `Error.prototype` are enumerable by default.
 	    support.enumErrorProps = propertyIsEnumerable.call(errorProto, 'message') || propertyIsEnumerable.call(errorProto, 'name');
-	
+
 	    // Detect if `prototype` properties are enumerable by default.
 	    support.enumPrototypes = propertyIsEnumerable.call(ctor, 'prototype');
-	
+
 	    // Detect if `arguments` object indexes are non-enumerable
 	    support.nonEnumArgs = key != 0;
-	
+
 	    // Detect if properties shadowing those on `Object.prototype` are non-enumerable.
 	    support.nonEnumShadows = !/valueOf/.test(props);
 	  }(1));
-	
+
 	  var isObject = Rx.internals.isObject = function(value) {
 	    var type = typeof value;
 	    return value && (type == 'function' || type == 'object') || false;
 	  };
-	
+
 	  function keysIn(object) {
 	    var result = [];
 	    if (!isObject(object)) {
@@ -13237,19 +13252,19 @@ module.exports =
 	    }
 	    var skipProto = support.enumPrototypes && typeof object == 'function',
 	        skipErrorProps = support.enumErrorProps && (object === errorProto || object instanceof Error);
-	
+
 	    for (var key in object) {
 	      if (!(skipProto && key == 'prototype') &&
 	          !(skipErrorProps && (key == 'message' || key == 'name'))) {
 	        result.push(key);
 	      }
 	    }
-	
+
 	    if (support.nonEnumShadows && object !== objectProto) {
 	      var ctor = object.constructor,
 	          index = -1,
 	          length = dontEnumsLength;
-	
+
 	      if (object === (ctor && ctor.prototype)) {
 	        var className = object === stringProto ? stringClass : object === errorProto ? errorClass : toString.call(object),
 	            nonEnum = nonEnumProps[className];
@@ -13263,12 +13278,12 @@ module.exports =
 	    }
 	    return result;
 	  }
-	
+
 	  function internalFor(object, callback, keysFunc) {
 	    var index = -1,
 	      props = keysFunc(object),
 	      length = props.length;
-	
+
 	    while (++index < length) {
 	      var key = props[index];
 	      if (callback(object[key], key, object) === false) {
@@ -13277,32 +13292,32 @@ module.exports =
 	    }
 	    return object;
 	  }
-	
+
 	  function internalForIn(object, callback) {
 	    return internalFor(object, callback, keysIn);
 	  }
-	
+
 	  function isNode(value) {
 	    // IE < 9 presents DOM nodes as `Object` objects except they have `toString`
 	    // methods that are `typeof` "string" and still can coerce nodes to strings
 	    return typeof value.toString != 'function' && typeof (value + '') == 'string';
 	  }
-	
+
 	  var isArguments = function(value) {
 	    return (value && typeof value == 'object') ? toString.call(value) == argsClass : false;
 	  }
-	
+
 	  // fallback for browsers that can't detect `arguments` objects by [[Class]]
 	  if (!supportsArgsClass) {
 	    isArguments = function(value) {
 	      return (value && typeof value == 'object') ? hasOwnProperty.call(value, 'callee') : false;
 	    };
 	  }
-	
+
 	  var isEqual = Rx.internals.isEqual = function (x, y) {
 	    return deepEquals(x, y, [], []);
 	  };
-	
+
 	  /** @private
 	   * Used for deep comparison
 	   **/
@@ -13312,20 +13327,20 @@ module.exports =
 	      // treat `+0` vs. `-0` as not equal
 	      return a !== 0 || (1 / a == 1 / b);
 	    }
-	
+
 	    var type = typeof a,
 	        otherType = typeof b;
-	
+
 	    // exit early for unlike primitive values
 	    if (a === a && (a == null || b == null ||
 	        (type != 'function' && type != 'object' && otherType != 'function' && otherType != 'object'))) {
 	      return false;
 	    }
-	
+
 	    // compare [[Class]] names
 	    var className = toString.call(a),
 	        otherClass = toString.call(b);
-	
+
 	    if (className == argsClass) {
 	      className = objectClass;
 	    }
@@ -13341,14 +13356,14 @@ module.exports =
 	        // coerce dates and booleans to numbers, dates to milliseconds and booleans
 	        // to `1` or `0` treating invalid dates coerced to `NaN` as not equal
 	        return +a == +b;
-	
+
 	      case numberClass:
 	        // treat `NaN` vs. `NaN` as equal
 	        return (a != +a) ?
 	          b != +b :
 	          // but treat `-0` vs. `+0` as not equal
 	          (a == 0 ? (1 / a == 1 / b) : a == +b);
-	
+
 	      case regexpClass:
 	      case stringClass:
 	        // coerce regexes to strings (http://es5.github.io/#x15.10.6.4)
@@ -13357,7 +13372,7 @@ module.exports =
 	    }
 	    var isArr = className == arrayClass;
 	    if (!isArr) {
-	
+
 	      // exit for functions and DOM nodes
 	      if (className != objectClass || (!support.nodeClass && (isNode(a) || isNode(b)))) {
 	        return false;
@@ -13365,7 +13380,7 @@ module.exports =
 	      // in older versions of Opera, `arguments` objects have `Array` constructors
 	      var ctorA = !support.argsObject && isArguments(a) ? Object : a.constructor,
 	          ctorB = !support.argsObject && isArguments(b) ? Object : b.constructor;
-	
+
 	      // non `Object` object instances with different constructors are not equal
 	      if (ctorA != ctorB &&
 	            !(hasOwnProperty.call(a, 'constructor') && hasOwnProperty.call(b, 'constructor')) &&
@@ -13381,7 +13396,7 @@ module.exports =
 	    var initedStack = !stackA;
 	    stackA || (stackA = []);
 	    stackB || (stackB = []);
-	
+
 	    var length = stackA.length;
 	    while (length--) {
 	      if (stackA[length] == a) {
@@ -13390,24 +13405,24 @@ module.exports =
 	    }
 	    var size = 0;
 	    var result = true;
-	
+
 	    // add `a` and `b` to the stack of traversed objects
 	    stackA.push(a);
 	    stackB.push(b);
-	
+
 	    // recursively compare objects and arrays (susceptible to call stack limits)
 	    if (isArr) {
 	      // compare lengths to determine if a deep comparison is necessary
 	      length = a.length;
 	      size = b.length;
 	      result = size == length;
-	
+
 	      if (result) {
 	        // deep compare the contents, ignoring non-numeric properties
 	        while (size--) {
 	          var index = length,
 	              value = b[size];
-	
+
 	          if (!(result = deepEquals(a[size], value, stackA, stackB))) {
 	            break;
 	          }
@@ -13425,7 +13440,7 @@ module.exports =
 	          return (result = hasOwnProperty.call(a, key) && deepEquals(a[key], value, stackA, stackB));
 	        }
 	      });
-	
+
 	      if (result) {
 	        // ensure both objects have the same number of properties
 	        internalForIn(a, function(value, key, a) {
@@ -13438,19 +13453,19 @@ module.exports =
 	    }
 	    stackA.pop();
 	    stackB.pop();
-	
+
 	    return result;
 	  }
-	
+
 	  var hasProp = {}.hasOwnProperty,
 	      slice = Array.prototype.slice;
-	
+
 	  var inherits = this.inherits = Rx.internals.inherits = function (child, parent) {
 	    function __() { this.constructor = child; }
 	    __.prototype = parent.prototype;
 	    child.prototype = new __();
 	  };
-	
+
 	  var addProperties = Rx.internals.addProperties = function (obj) {
 	    for(var sources = [], i = 1, len = arguments.length; i < len; i++) { sources.push(arguments[i]); }
 	    for (var idx = 0, ln = sources.length; idx < ln; idx++) {
@@ -13460,14 +13475,14 @@ module.exports =
 	      }
 	    }
 	  };
-	
+
 	  // Rx Utils
 	  var addRef = Rx.internals.addRef = function (xs, r) {
 	    return new AnonymousObservable(function (observer) {
 	      return new CompositeDisposable(r.getDisposable(), xs.subscribe(observer));
 	    });
 	  };
-	
+
 	  function arrayInitialize(count, factory) {
 	    var a = new Array(count);
 	    for (var i = 0; i < count; i++) {
@@ -13475,7 +13490,7 @@ module.exports =
 	    }
 	    return a;
 	  }
-	
+
 	  var errorObj = {e: {}};
 	  var tryCatchTarget;
 	  function tryCatcher() {
@@ -13494,30 +13509,30 @@ module.exports =
 	  function thrower(e) {
 	    throw e;
 	  }
-	
+
 	  // Collections
 	  function IndexedItem(id, value) {
 	    this.id = id;
 	    this.value = value;
 	  }
-	
+
 	  IndexedItem.prototype.compareTo = function (other) {
 	    var c = this.value.compareTo(other.value);
 	    c === 0 && (c = this.id - other.id);
 	    return c;
 	  };
-	
+
 	  // Priority Queue for Scheduling
 	  var PriorityQueue = Rx.internals.PriorityQueue = function (capacity) {
 	    this.items = new Array(capacity);
 	    this.length = 0;
 	  };
-	
+
 	  var priorityProto = PriorityQueue.prototype;
 	  priorityProto.isHigherPriority = function (left, right) {
 	    return this.items[left].compareTo(this.items[right]) < 0;
 	  };
-	
+
 	  priorityProto.percolate = function (index) {
 	    if (index >= this.length || index < 0) { return; }
 	    var parent = index - 1 >> 1;
@@ -13529,7 +13544,7 @@ module.exports =
 	      this.percolate(parent);
 	    }
 	  };
-	
+
 	  priorityProto.heapify = function (index) {
 	    +index || (index = 0);
 	    if (index >= this.length || index < 0) { return; }
@@ -13549,27 +13564,27 @@ module.exports =
 	      this.heapify(first);
 	    }
 	  };
-	
+
 	  priorityProto.peek = function () { return this.items[0].value; };
-	
+
 	  priorityProto.removeAt = function (index) {
 	    this.items[index] = this.items[--this.length];
 	    this.items[this.length] = undefined;
 	    this.heapify();
 	  };
-	
+
 	  priorityProto.dequeue = function () {
 	    var result = this.peek();
 	    this.removeAt(0);
 	    return result;
 	  };
-	
+
 	  priorityProto.enqueue = function (item) {
 	    var index = this.length++;
 	    this.items[index] = new IndexedItem(PriorityQueue.count++, item);
 	    this.percolate(index);
 	  };
-	
+
 	  priorityProto.remove = function (item) {
 	    for (var i = 0; i < this.length; i++) {
 	      if (this.items[i].value === item) {
@@ -13580,7 +13595,7 @@ module.exports =
 	    return false;
 	  };
 	  PriorityQueue.count = 0;
-	
+
 	  /**
 	   * Represents a group of disposable resources that are disposed together.
 	   * @constructor
@@ -13602,9 +13617,9 @@ module.exports =
 	    this.isDisposed = false;
 	    this.length = args.length;
 	  };
-	
+
 	  var CompositeDisposablePrototype = CompositeDisposable.prototype;
-	
+
 	  /**
 	   * Adds a disposable to the CompositeDisposable or disposes the disposable if the CompositeDisposable is disposed.
 	   * @param {Mixed} item Disposable to add.
@@ -13617,7 +13632,7 @@ module.exports =
 	      this.length++;
 	    }
 	  };
-	
+
 	  /**
 	   * Removes and disposes the first occurrence of a disposable from the CompositeDisposable.
 	   * @param {Mixed} item Disposable to remove.
@@ -13636,7 +13651,7 @@ module.exports =
 	    }
 	    return shouldDispose;
 	  };
-	
+
 	  /**
 	   *  Disposes all disposables in the group and removes them from the group.
 	   */
@@ -13647,13 +13662,13 @@ module.exports =
 	      for(var i = 0; i < len; i++) { currentDisposables[i] = this.disposables[i]; }
 	      this.disposables = [];
 	      this.length = 0;
-	
+
 	      for (i = 0; i < len; i++) {
 	        currentDisposables[i].dispose();
 	      }
 	    }
 	  };
-	
+
 	  /**
 	   * Provides a set of static methods for creating Disposables.
 	   * @param {Function} dispose Action to run during the first call to dispose. The action is guaranteed to be run at most once.
@@ -13662,7 +13677,7 @@ module.exports =
 	    this.isDisposed = false;
 	    this.action = action || noop;
 	  };
-	
+
 	  /** Performs the task of cleaning up resources. */
 	  Disposable.prototype.dispose = function () {
 	    if (!this.isDisposed) {
@@ -13670,19 +13685,19 @@ module.exports =
 	      this.isDisposed = true;
 	    }
 	  };
-	
+
 	  /**
 	   * Creates a disposable object that invokes the specified action when disposed.
 	   * @param {Function} dispose Action to run during the first call to dispose. The action is guaranteed to be run at most once.
 	   * @return {Disposable} The disposable object that runs the given action upon disposal.
 	   */
 	  var disposableCreate = Disposable.create = function (action) { return new Disposable(action); };
-	
+
 	  /**
 	   * Gets the disposable that does nothing when disposed.
 	   */
 	  var disposableEmpty = Disposable.empty = { dispose: noop };
-	
+
 	  /**
 	   * Validates whether the given object is a disposable
 	   * @param {Object} Object to test whether it has a dispose method
@@ -13691,11 +13706,11 @@ module.exports =
 	  var isDisposable = Disposable.isDisposable = function (d) {
 	    return d && isFunction(d.dispose);
 	  };
-	
+
 	  var checkDisposed = Disposable.checkDisposed = function (disposable) {
 	    if (disposable.isDisposed) { throw new ObjectDisposedError(); }
 	  };
-	
+
 	  // Single assignment
 	  var SingleAssignmentDisposable = Rx.SingleAssignmentDisposable = function () {
 	    this.isDisposed = false;
@@ -13718,7 +13733,7 @@ module.exports =
 	    }
 	    old && old.dispose();
 	  };
-	
+
 	  // Multiple assignment disposable
 	  var SerialDisposable = Rx.SerialDisposable = function () {
 	    this.isDisposed = false;
@@ -13744,18 +13759,18 @@ module.exports =
 	    }
 	    old && old.dispose();
 	  };
-	
+
 	  /**
 	   * Represents a disposable resource that only disposes its underlying disposable resource when all dependent disposable objects have been disposed.
 	   */
 	  var RefCountDisposable = Rx.RefCountDisposable = (function () {
-	
+
 	    function InnerDisposable(disposable) {
 	      this.disposable = disposable;
 	      this.disposable.count++;
 	      this.isInnerDisposed = false;
 	    }
-	
+
 	    InnerDisposable.prototype.dispose = function () {
 	      if (!this.disposable.isDisposed && !this.isInnerDisposed) {
 	        this.isInnerDisposed = true;
@@ -13766,7 +13781,7 @@ module.exports =
 	        }
 	      }
 	    };
-	
+
 	    /**
 	     * Initializes a new instance of the RefCountDisposable with the specified disposable.
 	     * @constructor
@@ -13778,7 +13793,7 @@ module.exports =
 	      this.isPrimaryDisposed = false;
 	      this.count = 0;
 	    }
-	
+
 	    /**
 	     * Disposes the underlying disposable only when all dependent disposables have been disposed
 	     */
@@ -13791,7 +13806,7 @@ module.exports =
 	        }
 	      }
 	    };
-	
+
 	    /**
 	     * Returns a dependent disposable that when disposed decreases the refcount on the underlying disposable.
 	     * @returns {Disposable} A dependent disposable contributing to the reference count that manages the underlying disposable's lifetime.
@@ -13799,27 +13814,27 @@ module.exports =
 	    RefCountDisposable.prototype.getDisposable = function () {
 	      return this.isDisposed ? disposableEmpty : new InnerDisposable(this);
 	    };
-	
+
 	    return RefCountDisposable;
 	  })();
-	
+
 	  function ScheduledDisposable(scheduler, disposable) {
 	    this.scheduler = scheduler;
 	    this.disposable = disposable;
 	    this.isDisposed = false;
 	  }
-	
+
 	  function scheduleItem(s, self) {
 	    if (!self.isDisposed) {
 	      self.isDisposed = true;
 	      self.disposable.dispose();
 	    }
 	  }
-	
+
 	  ScheduledDisposable.prototype.dispose = function () {
 	    this.scheduler.scheduleWithState(this, scheduleItem);
 	  };
-	
+
 	  var ScheduledItem = Rx.internals.ScheduledItem = function (scheduler, state, action, dueTime, comparer) {
 	    this.scheduler = scheduler;
 	    this.state = state;
@@ -13828,45 +13843,45 @@ module.exports =
 	    this.comparer = comparer || defaultSubComparer;
 	    this.disposable = new SingleAssignmentDisposable();
 	  }
-	
+
 	  ScheduledItem.prototype.invoke = function () {
 	    this.disposable.setDisposable(this.invokeCore());
 	  };
-	
+
 	  ScheduledItem.prototype.compareTo = function (other) {
 	    return this.comparer(this.dueTime, other.dueTime);
 	  };
-	
+
 	  ScheduledItem.prototype.isCancelled = function () {
 	    return this.disposable.isDisposed;
 	  };
-	
+
 	  ScheduledItem.prototype.invokeCore = function () {
 	    return this.action(this.scheduler, this.state);
 	  };
-	
+
 	  /** Provides a set of static properties to access commonly used schedulers. */
 	  var Scheduler = Rx.Scheduler = (function () {
-	
+
 	    function Scheduler(now, schedule, scheduleRelative, scheduleAbsolute) {
 	      this.now = now;
 	      this._schedule = schedule;
 	      this._scheduleRelative = scheduleRelative;
 	      this._scheduleAbsolute = scheduleAbsolute;
 	    }
-	
+
 	    /** Determines whether the given object is a scheduler */
 	    Scheduler.isScheduler = function (s) {
 	      return s instanceof Scheduler;
 	    }
-	
+
 	    function invokeAction(scheduler, action) {
 	      action();
 	      return disposableEmpty;
 	    }
-	
+
 	    var schedulerProto = Scheduler.prototype;
-	
+
 	    /**
 	     * Schedules an action to be executed.
 	     * @param {Function} action Action to execute.
@@ -13875,7 +13890,7 @@ module.exports =
 	    schedulerProto.schedule = function (action) {
 	      return this._schedule(action, invokeAction);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed.
 	     * @param state State passed to the action to be executed.
@@ -13885,7 +13900,7 @@ module.exports =
 	    schedulerProto.scheduleWithState = function (state, action) {
 	      return this._schedule(state, action);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed after the specified relative due time.
 	     * @param {Function} action Action to execute.
@@ -13895,7 +13910,7 @@ module.exports =
 	    schedulerProto.scheduleWithRelative = function (dueTime, action) {
 	      return this._scheduleRelative(action, dueTime, invokeAction);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed after dueTime.
 	     * @param state State passed to the action to be executed.
@@ -13906,7 +13921,7 @@ module.exports =
 	    schedulerProto.scheduleWithRelativeAndState = function (state, dueTime, action) {
 	      return this._scheduleRelative(state, dueTime, action);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed at the specified absolute due time.
 	     * @param {Function} action Action to execute.
@@ -13916,7 +13931,7 @@ module.exports =
 	    schedulerProto.scheduleWithAbsolute = function (dueTime, action) {
 	      return this._scheduleAbsolute(action, dueTime, invokeAction);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed at dueTime.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -13927,10 +13942,10 @@ module.exports =
 	    schedulerProto.scheduleWithAbsoluteAndState = function (state, dueTime, action) {
 	      return this._scheduleAbsolute(state, dueTime, action);
 	    };
-	
+
 	    /** Gets the current time according to the local machine's system clock. */
 	    Scheduler.now = defaultNow;
-	
+
 	    /**
 	     * Normalizes the specified TimeSpan value to a positive value.
 	     * @param {Number} timeSpan The time span value to normalize.
@@ -13940,17 +13955,17 @@ module.exports =
 	      timeSpan < 0 && (timeSpan = 0);
 	      return timeSpan;
 	    };
-	
+
 	    return Scheduler;
 	  }());
-	
+
 	  var normalizeTime = Scheduler.normalize, isScheduler = Scheduler.isScheduler;
-	
+
 	  (function (schedulerProto) {
-	
+
 	    function invokeRecImmediate(scheduler, pair) {
 	      var state = pair[0], action = pair[1], group = new CompositeDisposable();
-	
+
 	      function recursiveAction(state1) {
 	        action(state1, function (state2) {
 	          var isAdded = false, isDone = false,
@@ -13972,7 +13987,7 @@ module.exports =
 	      recursiveAction(state);
 	      return group;
 	    }
-	
+
 	    function invokeRecDate(scheduler, pair, method) {
 	      var state = pair[0], action = pair[1], group = new CompositeDisposable();
 	      function recursiveAction(state1) {
@@ -13996,11 +14011,11 @@ module.exports =
 	      recursiveAction(state);
 	      return group;
 	    }
-	
+
 	    function scheduleInnerRecursive(action, self) {
 	      action(function(dt) { self(action, dt); });
 	    }
-	
+
 	    /**
 	     * Schedules an action to be executed recursively.
 	     * @param {Function} action Action to execute recursively. The parameter passed to the action is used to trigger recursive scheduling of the action.
@@ -14009,7 +14024,7 @@ module.exports =
 	    schedulerProto.scheduleRecursive = function (action) {
 	      return this.scheduleRecursiveWithState(action, scheduleInnerRecursive);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -14019,7 +14034,7 @@ module.exports =
 	    schedulerProto.scheduleRecursiveWithState = function (state, action) {
 	      return this.scheduleWithState([state, action], invokeRecImmediate);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively after a specified relative due time.
 	     * @param {Function} action Action to execute recursively. The parameter passed to the action is used to trigger recursive scheduling of the action at the specified relative time.
@@ -14029,7 +14044,7 @@ module.exports =
 	    schedulerProto.scheduleRecursiveWithRelative = function (dueTime, action) {
 	      return this.scheduleRecursiveWithRelativeAndState(action, dueTime, scheduleInnerRecursive);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively after a specified relative due time.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -14042,7 +14057,7 @@ module.exports =
 	        return invokeRecDate(s, p, 'scheduleWithRelativeAndState');
 	      });
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively at a specified absolute due time.
 	     * @param {Function} action Action to execute recursively. The parameter passed to the action is used to trigger recursive scheduling of the action at the specified absolute time.
@@ -14052,7 +14067,7 @@ module.exports =
 	    schedulerProto.scheduleRecursiveWithAbsolute = function (dueTime, action) {
 	      return this.scheduleRecursiveWithAbsoluteAndState(action, dueTime, scheduleInnerRecursive);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed recursively at a specified absolute due time.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -14066,9 +14081,9 @@ module.exports =
 	      });
 	    };
 	  }(Scheduler.prototype));
-	
+
 	  (function (schedulerProto) {
-	
+
 	    /**
 	     * Schedules a periodic piece of work by dynamically discovering the scheduler's capabilities. The periodic task will be scheduled using window.setInterval for the base implementation.
 	     * @param {Number} period Period for running the work periodically.
@@ -14078,7 +14093,7 @@ module.exports =
 	    Scheduler.prototype.schedulePeriodic = function (period, action) {
 	      return this.schedulePeriodicWithState(null, period, action);
 	    };
-	
+
 	    /**
 	     * Schedules a periodic piece of work by dynamically discovering the scheduler's capabilities. The periodic task will be scheduled using window.setInterval for the base implementation.
 	     * @param {Mixed} state Initial state passed to the action upon the first iteration.
@@ -14092,9 +14107,9 @@ module.exports =
 	      var s = state, id = root.setInterval(function () { s = action(s); }, period);
 	      return disposableCreate(function () { root.clearInterval(id); });
 	    };
-	
+
 	  }(Scheduler.prototype));
-	
+
 	  (function (schedulerProto) {
 	    /**
 	     * Returns a scheduler that wraps the original scheduler, adding exception handling for scheduled actions.
@@ -14105,7 +14120,7 @@ module.exports =
 	      return new CatchScheduler(this, handler);
 	    };
 	  }(Scheduler.prototype));
-	
+
 	  var SchedulePeriodicRecursive = Rx.internals.SchedulePeriodicRecursive = (function () {
 	    function tick(command, recurse) {
 	      recurse(0, this._period);
@@ -14116,51 +14131,51 @@ module.exports =
 	        throw e;
 	      }
 	    }
-	
+
 	    function SchedulePeriodicRecursive(scheduler, state, period, action) {
 	      this._scheduler = scheduler;
 	      this._state = state;
 	      this._period = period;
 	      this._action = action;
 	    }
-	
+
 	    SchedulePeriodicRecursive.prototype.start = function () {
 	      var d = new SingleAssignmentDisposable();
 	      this._cancel = d;
 	      d.setDisposable(this._scheduler.scheduleRecursiveWithRelativeAndState(0, this._period, tick.bind(this)));
-	
+
 	      return d;
 	    };
-	
+
 	    return SchedulePeriodicRecursive;
 	  }());
-	
+
 	  /** Gets a scheduler that schedules work immediately on the current thread. */
 	  var immediateScheduler = Scheduler.immediate = (function () {
 	    function scheduleNow(state, action) { return action(this, state); }
 	    return new Scheduler(defaultNow, scheduleNow, notSupported, notSupported);
 	  }());
-	
+
 	  /**
 	   * Gets a scheduler that schedules work as soon as possible on the current thread.
 	   */
 	  var currentThreadScheduler = Scheduler.currentThread = (function () {
 	    var queue;
-	
+
 	    function runTrampoline () {
 	      while (queue.length > 0) {
 	        var item = queue.dequeue();
 	        !item.isCancelled() && item.invoke();
 	      }
 	    }
-	
+
 	    function scheduleNow(state, action) {
 	      var si = new ScheduledItem(this, state, action, this.now());
-	
+
 	      if (!queue) {
 	        queue = new PriorityQueue(4);
 	        queue.enqueue(si);
-	
+
 	        var result = tryCatch(runTrampoline)();
 	        queue = null;
 	        if (result === errorObj) { return thrower(result.e); }
@@ -14169,15 +14184,15 @@ module.exports =
 	      }
 	      return si.disposable;
 	    }
-	
+
 	    var currentScheduler = new Scheduler(defaultNow, scheduleNow, notSupported, notSupported);
 	    currentScheduler.scheduleRequired = function () { return !queue; };
-	
+
 	    return currentScheduler;
 	  }());
-	
+
 	  var scheduleMethod, clearMethod;
-	
+
 	  var localTimer = (function () {
 	    var localSetTimeout, localClearTimeout = noop;
 	    if (!!root.setTimeout) {
@@ -14191,7 +14206,7 @@ module.exports =
 	    } else {
 	      throw new NotSupportedError();
 	    }
-	
+
 	    return {
 	      setTimeout: localSetTimeout,
 	      clearTimeout: localClearTimeout
@@ -14199,15 +14214,15 @@ module.exports =
 	  }());
 	  var localSetTimeout = localTimer.setTimeout,
 	    localClearTimeout = localTimer.clearTimeout;
-	
+
 	  (function () {
-	
+
 	    var nextHandle = 1, tasksByHandle = {}, currentlyRunning = false;
-	
+
 	    clearMethod = function (handle) {
 	      delete tasksByHandle[handle];
 	    };
-	
+
 	    function runTask(handle) {
 	      if (currentlyRunning) {
 	        localSetTimeout(function () { runTask(handle) }, 0);
@@ -14222,16 +14237,16 @@ module.exports =
 	        }
 	      }
 	    }
-	
+
 	    var reNative = RegExp('^' +
 	      String(toString)
 	        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 	        .replace(/toString| for [^\]]+/g, '.*?') + '$'
 	    );
-	
+
 	    var setImmediate = typeof (setImmediate = freeGlobal && moduleExports && freeGlobal.setImmediate) == 'function' &&
 	      !reNative.test(setImmediate) && setImmediate;
-	
+
 	    function postMessageSupported () {
 	      // Ensure not in a worker
 	      if (!root.postMessage || root.importScripts) { return false; }
@@ -14240,17 +14255,17 @@ module.exports =
 	      root.onmessage = function () { isAsync = true; };
 	      root.postMessage('', '*');
 	      root.onmessage = oldHandler;
-	
+
 	      return isAsync;
 	    }
-	
+
 	    // Use in order, setImmediate, nextTick, postMessage, MessageChannel, script readystatechanged, setTimeout
 	    if (isFunction(setImmediate)) {
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
 	        setImmediate(function () { runTask(id); });
-	
+
 	        return id;
 	      };
 	    } else if (typeof process !== 'undefined' && {}.toString.call(process) === '[object process]') {
@@ -14258,19 +14273,19 @@ module.exports =
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
 	        process.nextTick(function () { runTask(id); });
-	
+
 	        return id;
 	      };
 	    } else if (postMessageSupported()) {
 	      var MSG_PREFIX = 'ms.rx.schedule' + Math.random();
-	
+
 	      function onGlobalPostMessage(event) {
 	        // Only if we're a match to avoid any other global events
 	        if (typeof event.data === 'string' && event.data.substring(0, MSG_PREFIX.length) === MSG_PREFIX) {
 	          runTask(event.data.substring(MSG_PREFIX.length));
 	        }
 	      }
-	
+
 	      if (root.addEventListener) {
 	        root.addEventListener('message', onGlobalPostMessage, false);
 	      } else if (root.attachEvent) {
@@ -14278,7 +14293,7 @@ module.exports =
 	      } else {
 	        root.onmessage = onGlobalPostMessage;
 	      }
-	
+
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
@@ -14287,9 +14302,9 @@ module.exports =
 	      };
 	    } else if (!!root.MessageChannel) {
 	      var channel = new root.MessageChannel();
-	
+
 	      channel.port1.onmessage = function (e) { runTask(e.data); };
-	
+
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
@@ -14297,12 +14312,12 @@ module.exports =
 	        return id;
 	      };
 	    } else if ('document' in root && 'onreadystatechange' in root.document.createElement('script')) {
-	
+
 	      scheduleMethod = function (action) {
 	        var scriptElement = root.document.createElement('script');
 	        var id = nextHandle++;
 	        tasksByHandle[id] = action;
-	
+
 	        scriptElement.onreadystatechange = function () {
 	          runTask(id);
 	          scriptElement.onreadystatechange = null;
@@ -14312,7 +14327,7 @@ module.exports =
 	        root.document.documentElement.appendChild(scriptElement);
 	        return id;
 	      };
-	
+
 	    } else {
 	      scheduleMethod = function (action) {
 	        var id = nextHandle++;
@@ -14320,17 +14335,17 @@ module.exports =
 	        localSetTimeout(function () {
 	          runTask(id);
 	        }, 0);
-	
+
 	        return id;
 	      };
 	    }
 	  }());
-	
+
 	  /**
 	   * Gets a scheduler that schedules work via a timed callback based upon platform.
 	   */
 	  var timeoutScheduler = Scheduler.timeout = Scheduler['default'] = (function () {
-	
+
 	    function scheduleNow(state, action) {
 	      var scheduler = this, disposable = new SingleAssignmentDisposable();
 	      var id = scheduleMethod(function () {
@@ -14340,7 +14355,7 @@ module.exports =
 	        clearMethod(id);
 	      }));
 	    }
-	
+
 	    function scheduleRelative(state, dueTime, action) {
 	      var scheduler = this, dt = Scheduler.normalize(dueTime), disposable = new SingleAssignmentDisposable();
 	      if (dt === 0) { return scheduler.scheduleWithState(state, action); }
@@ -14351,30 +14366,30 @@ module.exports =
 	        localClearTimeout(id);
 	      }));
 	    }
-	
+
 	    function scheduleAbsolute(state, dueTime, action) {
 	      return this.scheduleWithRelativeAndState(state, dueTime - this.now(), action);
 	    }
-	
+
 	    return new Scheduler(defaultNow, scheduleNow, scheduleRelative, scheduleAbsolute);
 	  })();
-	
+
 	  var CatchScheduler = (function (__super__) {
-	
+
 	    function scheduleNow(state, action) {
 	      return this._scheduler.scheduleWithState(state, this._wrap(action));
 	    }
-	
+
 	    function scheduleRelative(state, dueTime, action) {
 	      return this._scheduler.scheduleWithRelativeAndState(state, dueTime, this._wrap(action));
 	    }
-	
+
 	    function scheduleAbsolute(state, dueTime, action) {
 	      return this._scheduler.scheduleWithAbsoluteAndState(state, dueTime, this._wrap(action));
 	    }
-	
+
 	    inherits(CatchScheduler, __super__);
-	
+
 	    function CatchScheduler(scheduler, handler) {
 	      this._scheduler = scheduler;
 	      this._handler = handler;
@@ -14382,11 +14397,11 @@ module.exports =
 	      this._recursiveWrapper = null;
 	      __super__.call(this, this._scheduler.now.bind(this._scheduler), scheduleNow, scheduleRelative, scheduleAbsolute);
 	    }
-	
+
 	    CatchScheduler.prototype._clone = function (scheduler) {
 	        return new CatchScheduler(scheduler, this._handler);
 	    };
-	
+
 	    CatchScheduler.prototype._wrap = function (action) {
 	      var parent = this;
 	      return function (self, state) {
@@ -14398,7 +14413,7 @@ module.exports =
 	        }
 	      };
 	    };
-	
+
 	    CatchScheduler.prototype._getRecursiveWrapper = function (scheduler) {
 	      if (this._recursiveOriginal !== scheduler) {
 	        this._recursiveOriginal = scheduler;
@@ -14409,10 +14424,10 @@ module.exports =
 	      }
 	      return this._recursiveWrapper;
 	    };
-	
+
 	    CatchScheduler.prototype.schedulePeriodicWithState = function (state, period, action) {
 	      var self = this, failed = false, d = new SingleAssignmentDisposable();
-	
+
 	      d.setDisposable(this._scheduler.schedulePeriodicWithState(state, period, function (state1) {
 	        if (failed) { return null; }
 	        try {
@@ -14424,13 +14439,13 @@ module.exports =
 	          return null;
 	        }
 	      }));
-	
+
 	      return d;
 	    };
-	
+
 	    return CatchScheduler;
 	  }(Scheduler));
-	
+
 	  /**
 	   *  Represents a notification to an observer.
 	   */
@@ -14443,7 +14458,7 @@ module.exports =
 	      this._acceptObservable = acceptObservable;
 	      this.toString = toString;
 	    }
-	
+
 	    /**
 	     * Invokes the delegate corresponding to the notification or the observer's method corresponding to the notification and returns the produced result.
 	     *
@@ -14458,7 +14473,7 @@ module.exports =
 	        this._acceptObservable(observerOrOnNext) :
 	        this._accept(observerOrOnNext, onError, onCompleted);
 	    };
-	
+
 	    /**
 	     * Returns an observable sequence with a single notification.
 	     *
@@ -14476,10 +14491,10 @@ module.exports =
 	        });
 	      });
 	    };
-	
+
 	    return Notification;
 	  })();
-	
+
 	  /**
 	   * Creates an object that represents an OnNext notification to an observer.
 	   * @param {Any} value The value contained in the notification.
@@ -14489,12 +14504,12 @@ module.exports =
 	      function _accept(onNext) { return onNext(this.value); }
 	      function _acceptObservable(observer) { return observer.onNext(this.value); }
 	      function toString() { return 'OnNext(' + this.value + ')'; }
-	
+
 	      return function (value) {
 	        return new Notification('N', value, null, _accept, _acceptObservable, toString);
 	      };
 	  }());
-	
+
 	  /**
 	   * Creates an object that represents an OnError notification to an observer.
 	   * @param {Any} error The exception contained in the notification.
@@ -14504,12 +14519,12 @@ module.exports =
 	    function _accept (onNext, onError) { return onError(this.exception); }
 	    function _acceptObservable(observer) { return observer.onError(this.exception); }
 	    function toString () { return 'OnError(' + this.exception + ')'; }
-	
+
 	    return function (e) {
 	      return new Notification('E', null, e, _accept, _acceptObservable, toString);
 	    };
 	  }());
-	
+
 	  /**
 	   * Creates an object that represents an OnCompleted notification to an observer.
 	   * @returns {Notification} The OnCompleted notification.
@@ -14518,17 +14533,17 @@ module.exports =
 	    function _accept (onNext, onError, onCompleted) { return onCompleted(); }
 	    function _acceptObservable(observer) { return observer.onCompleted(); }
 	    function toString () { return 'OnCompleted()'; }
-	
+
 	    return function () {
 	      return new Notification('C', null, null, _accept, _acceptObservable, toString);
 	    };
 	  }());
-	
+
 	  /**
 	   * Supports push-style iteration over an observable sequence.
 	   */
 	  var Observer = Rx.Observer = function () { };
-	
+
 	  /**
 	   *  Creates a notification callback from an observer.
 	   * @returns The action that forwards its input notification to the underlying observer.
@@ -14537,7 +14552,7 @@ module.exports =
 	    var observer = this;
 	    return function (n) { return n.accept(observer); };
 	  };
-	
+
 	  /**
 	   *  Hides the identity of an observer.
 	   * @returns An observer that hides the identity of the specified observer.
@@ -14545,14 +14560,14 @@ module.exports =
 	  Observer.prototype.asObserver = function () {
 	    return new AnonymousObserver(this.onNext.bind(this), this.onError.bind(this), this.onCompleted.bind(this));
 	  };
-	
+
 	  /**
 	   *  Checks access to the observer for grammar violations. This includes checking for multiple OnError or OnCompleted calls, as well as reentrancy in any of the observer methods.
 	   *  If a violation is detected, an Error is thrown from the offending observer method call.
 	   * @returns An observer that checks callbacks invocations against the observer grammar and, if the checks pass, forwards those to the specified observer.
 	   */
 	  Observer.prototype.checked = function () { return new CheckedObserver(this); };
-	
+
 	  /**
 	   *  Creates an observer from the specified OnNext, along with optional OnError, and OnCompleted actions.
 	   * @param {Function} [onNext] Observer's OnNext action implementation.
@@ -14566,7 +14581,7 @@ module.exports =
 	    onCompleted || (onCompleted = noop);
 	    return new AnonymousObserver(onNext, onError, onCompleted);
 	  };
-	
+
 	  /**
 	   *  Creates an observer from a notification callback.
 	   *
@@ -14584,7 +14599,7 @@ module.exports =
 	      return handler.call(thisArg, notificationCreateOnCompleted());
 	    });
 	  };
-	
+
 	  /**
 	   * Schedules the invocation of observer methods on the given scheduler.
 	   * @param {Scheduler} scheduler Scheduler to schedule observer messages on.
@@ -14593,18 +14608,18 @@ module.exports =
 	  Observer.prototype.notifyOn = function (scheduler) {
 	    return new ObserveOnObserver(scheduler, this);
 	  };
-	
+
 	  Observer.prototype.makeSafe = function(disposable) {
 	    return new AnonymousSafeObserver(this._onNext, this._onError, this._onCompleted, disposable);
 	  };
-	
+
 	  /**
 	   * Abstract base class for implementations of the Observer class.
 	   * This base class enforces the grammar of observers where OnError and OnCompleted are terminal messages.
 	   */
 	  var AbstractObserver = Rx.internals.AbstractObserver = (function (__super__) {
 	    inherits(AbstractObserver, __super__);
-	
+
 	    /**
 	     * Creates a new observer in a non-stopped state.
 	     */
@@ -14612,12 +14627,12 @@ module.exports =
 	      this.isStopped = false;
 	      __super__.call(this);
 	    }
-	
+
 	    // Must be implemented by other observers
 	    AbstractObserver.prototype.next = notImplemented;
 	    AbstractObserver.prototype.error = notImplemented;
 	    AbstractObserver.prototype.completed = notImplemented;
-	
+
 	    /**
 	     * Notifies the observer of a new element in the sequence.
 	     * @param {Any} value Next element in the sequence.
@@ -14625,7 +14640,7 @@ module.exports =
 	    AbstractObserver.prototype.onNext = function (value) {
 	      if (!this.isStopped) { this.next(value); }
 	    };
-	
+
 	    /**
 	     * Notifies the observer that an exception has occurred.
 	     * @param {Any} error The error that has occurred.
@@ -14636,7 +14651,7 @@ module.exports =
 	        this.error(error);
 	      }
 	    };
-	
+
 	    /**
 	     * Notifies the observer of the end of the sequence.
 	     */
@@ -14646,33 +14661,33 @@ module.exports =
 	        this.completed();
 	      }
 	    };
-	
+
 	    /**
 	     * Disposes the observer, causing it to transition to the stopped state.
 	     */
 	    AbstractObserver.prototype.dispose = function () {
 	      this.isStopped = true;
 	    };
-	
+
 	    AbstractObserver.prototype.fail = function (e) {
 	      if (!this.isStopped) {
 	        this.isStopped = true;
 	        this.error(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    return AbstractObserver;
 	  }(Observer));
-	
+
 	  /**
 	   * Class to create an Observer instance from delegate-based implementations of the on* methods.
 	   */
 	  var AnonymousObserver = Rx.AnonymousObserver = (function (__super__) {
 	    inherits(AnonymousObserver, __super__);
-	
+
 	    /**
 	     * Creates an observer from the specified OnNext, OnError, and OnCompleted actions.
 	     * @param {Any} onNext Observer's OnNext action implementation.
@@ -14685,7 +14700,7 @@ module.exports =
 	      this._onError = onError;
 	      this._onCompleted = onCompleted;
 	    }
-	
+
 	    /**
 	     * Calls the onNext action.
 	     * @param {Any} value Next element in the sequence.
@@ -14693,7 +14708,7 @@ module.exports =
 	    AnonymousObserver.prototype.next = function (value) {
 	      this._onNext(value);
 	    };
-	
+
 	    /**
 	     * Calls the onError action.
 	     * @param {Any} error The error that has occurred.
@@ -14701,61 +14716,61 @@ module.exports =
 	    AnonymousObserver.prototype.error = function (error) {
 	      this._onError(error);
 	    };
-	
+
 	    /**
 	     *  Calls the onCompleted action.
 	     */
 	    AnonymousObserver.prototype.completed = function () {
 	      this._onCompleted();
 	    };
-	
+
 	    return AnonymousObserver;
 	  }(AbstractObserver));
-	
+
 	  var CheckedObserver = (function (__super__) {
 	    inherits(CheckedObserver, __super__);
-	
+
 	    function CheckedObserver(observer) {
 	      __super__.call(this);
 	      this._observer = observer;
 	      this._state = 0; // 0 - idle, 1 - busy, 2 - done
 	    }
-	
+
 	    var CheckedObserverPrototype = CheckedObserver.prototype;
-	
+
 	    CheckedObserverPrototype.onNext = function (value) {
 	      this.checkAccess();
 	      var res = tryCatch(this._observer.onNext).call(this._observer, value);
 	      this._state = 0;
 	      res === errorObj && thrower(res.e);
 	    };
-	
+
 	    CheckedObserverPrototype.onError = function (err) {
 	      this.checkAccess();
 	      var res = tryCatch(this._observer.onError).call(this._observer, err);
 	      this._state = 2;
 	      res === errorObj && thrower(res.e);
 	    };
-	
+
 	    CheckedObserverPrototype.onCompleted = function () {
 	      this.checkAccess();
 	      var res = tryCatch(this._observer.onCompleted).call(this._observer);
 	      this._state = 2;
 	      res === errorObj && thrower(res.e);
 	    };
-	
+
 	    CheckedObserverPrototype.checkAccess = function () {
 	      if (this._state === 1) { throw new Error('Re-entrancy detected'); }
 	      if (this._state === 2) { throw new Error('Observer completed'); }
 	      if (this._state === 0) { this._state = 1; }
 	    };
-	
+
 	    return CheckedObserver;
 	  }(Observer));
-	
+
 	  var ScheduledObserver = Rx.internals.ScheduledObserver = (function (__super__) {
 	    inherits(ScheduledObserver, __super__);
-	
+
 	    function ScheduledObserver(scheduler, observer) {
 	      __super__.call(this);
 	      this.scheduler = scheduler;
@@ -14765,22 +14780,22 @@ module.exports =
 	      this.queue = [];
 	      this.disposable = new SerialDisposable();
 	    }
-	
+
 	    ScheduledObserver.prototype.next = function (value) {
 	      var self = this;
 	      this.queue.push(function () { self.observer.onNext(value); });
 	    };
-	
+
 	    ScheduledObserver.prototype.error = function (e) {
 	      var self = this;
 	      this.queue.push(function () { self.observer.onError(e); });
 	    };
-	
+
 	    ScheduledObserver.prototype.completed = function () {
 	      var self = this;
 	      this.queue.push(function () { self.observer.onCompleted(); });
 	    };
-	
+
 	    ScheduledObserver.prototype.ensureActive = function () {
 	      var isOwner = false, parent = this;
 	      if (!this.hasFaulted && this.queue.length > 0) {
@@ -14807,54 +14822,54 @@ module.exports =
 	        }));
 	      }
 	    };
-	
+
 	    ScheduledObserver.prototype.dispose = function () {
 	      __super__.prototype.dispose.call(this);
 	      this.disposable.dispose();
 	    };
-	
+
 	    return ScheduledObserver;
 	  }(AbstractObserver));
-	
+
 	  var ObserveOnObserver = (function (__super__) {
 	    inherits(ObserveOnObserver, __super__);
-	
+
 	    function ObserveOnObserver(scheduler, observer, cancel) {
 	      __super__.call(this, scheduler, observer);
 	      this._cancel = cancel;
 	    }
-	
+
 	    ObserveOnObserver.prototype.next = function (value) {
 	      __super__.prototype.next.call(this, value);
 	      this.ensureActive();
 	    };
-	
+
 	    ObserveOnObserver.prototype.error = function (e) {
 	      __super__.prototype.error.call(this, e);
 	      this.ensureActive();
 	    };
-	
+
 	    ObserveOnObserver.prototype.completed = function () {
 	      __super__.prototype.completed.call(this);
 	      this.ensureActive();
 	    };
-	
+
 	    ObserveOnObserver.prototype.dispose = function () {
 	      __super__.prototype.dispose.call(this);
 	      this._cancel && this._cancel.dispose();
 	      this._cancel = null;
 	    };
-	
+
 	    return ObserveOnObserver;
 	  })(ScheduledObserver);
-	
+
 	  var observableProto;
-	
+
 	  /**
 	   * Represents a push-style collection.
 	   */
 	  var Observable = Rx.Observable = (function () {
-	
+
 	    function Observable(subscribe) {
 	      if (Rx.config.longStackSupport && hasStacks) {
 	        try {
@@ -14862,25 +14877,25 @@ module.exports =
 	        } catch (e) {
 	          this.stack = e.stack.substring(e.stack.indexOf("\n") + 1);
 	        }
-	
+
 	        var self = this;
 	        this._subscribe = function (observer) {
 	          var oldOnError = observer.onError.bind(observer);
-	
+
 	          observer.onError = function (err) {
 	            makeStackTraceLong(err, self);
 	            oldOnError(err);
 	          };
-	
+
 	          return subscribe.call(self, observer);
 	        };
 	      } else {
 	        this._subscribe = subscribe;
 	      }
 	    }
-	
+
 	    observableProto = Observable.prototype;
-	
+
 	    /**
 	     *  Subscribes an observer to the observable sequence.
 	     *  @param {Mixed} [observerOrOnNext] The object that is to receive notifications or an action to invoke for each element in the observable sequence.
@@ -14893,7 +14908,7 @@ module.exports =
 	        observerOrOnNext :
 	        observerCreate(observerOrOnNext, onError, onCompleted));
 	    };
-	
+
 	    /**
 	     * Subscribes to the next value in the sequence with an optional "this" argument.
 	     * @param {Function} onNext The function to invoke on each element in the observable sequence.
@@ -14903,7 +14918,7 @@ module.exports =
 	    observableProto.subscribeOnNext = function (onNext, thisArg) {
 	      return this._subscribe(observerCreate(typeof thisArg !== 'undefined' ? function(x) { onNext.call(thisArg, x); } : onNext));
 	    };
-	
+
 	    /**
 	     * Subscribes to an exceptional condition in the sequence with an optional "this" argument.
 	     * @param {Function} onError The function to invoke upon exceptional termination of the observable sequence.
@@ -14913,7 +14928,7 @@ module.exports =
 	    observableProto.subscribeOnError = function (onError, thisArg) {
 	      return this._subscribe(observerCreate(null, typeof thisArg !== 'undefined' ? function(e) { onError.call(thisArg, e); } : onError));
 	    };
-	
+
 	    /**
 	     * Subscribes to the next value in the sequence with an optional "this" argument.
 	     * @param {Function} onCompleted The function to invoke upon graceful termination of the observable sequence.
@@ -14923,31 +14938,31 @@ module.exports =
 	    observableProto.subscribeOnCompleted = function (onCompleted, thisArg) {
 	      return this._subscribe(observerCreate(null, null, typeof thisArg !== 'undefined' ? function() { onCompleted.call(thisArg); } : onCompleted));
 	    };
-	
+
 	    return Observable;
 	  })();
-	
+
 	  var ObservableBase = Rx.ObservableBase = (function (__super__) {
 	    inherits(ObservableBase, __super__);
-	
+
 	    function fixSubscriber(subscriber) {
 	      return subscriber && isFunction(subscriber.dispose) ? subscriber :
 	        isFunction(subscriber) ? disposableCreate(subscriber) : disposableEmpty;
 	    }
-	
+
 	    function setDisposable(s, state) {
 	      var ado = state[0], self = state[1];
 	      var sub = tryCatch(self.subscribeCore).call(self, ado);
-	
+
 	      if (sub === errorObj) {
 	        if(!ado.fail(errorObj.e)) { return thrower(errorObj.e); }
 	      }
 	      ado.setDisposable(fixSubscriber(sub));
 	    }
-	
+
 	    function subscribe(observer) {
 	      var ado = new AutoDetachObserver(observer), state = [ado, this];
-	
+
 	      if (currentThreadScheduler.scheduleRequired()) {
 	        currentThreadScheduler.scheduleWithState(state, setDisposable);
 	      } else {
@@ -14955,18 +14970,18 @@ module.exports =
 	      }
 	      return ado;
 	    }
-	
+
 	    function ObservableBase() {
 	      __super__.call(this, subscribe);
 	    }
-	
+
 	    ObservableBase.prototype.subscribeCore = notImplemented;
-	
+
 	    return ObservableBase;
 	  }(Observable));
-	
+
 	  var Enumerable = Rx.internals.Enumerable = function () { };
-	
+
 	  var ConcatEnumerableObservable = (function(__super__) {
 	    inherits(ConcatEnumerableObservable, __super__);
 	    function ConcatEnumerableObservable(sources) {
@@ -14980,20 +14995,20 @@ module.exports =
 	        if (isDisposed) { return; }
 	        var currentItem = tryCatch(e.next).call(e);
 	        if (currentItem === errorObj) { return o.onError(currentItem.e); }
-	
+
 	        if (currentItem.done) {
 	          return o.onCompleted();
 	        }
-	
+
 	        // Check if promise
 	        var currentValue = currentItem.value;
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(new InnerObserver(o, self, e)));
 	      });
-	
+
 	      return new CompositeDisposable(subscription, cancelable, disposableCreate(function () {
 	        isDisposed = true;
 	      }));
@@ -15030,7 +15045,7 @@ module.exports =
 	    
 	    return ConcatEnumerableObservable;
 	  }(ObservableBase));
-	
+
 	  Enumerable.prototype.concat = function () {
 	    return new ConcatEnumerableObservable(this);
 	  };
@@ -15044,21 +15059,21 @@ module.exports =
 	    
 	    CatchErrorObservable.prototype.subscribeCore = function (o) {
 	      var e = this.sources[$iterator$]();
-	
+
 	      var isDisposed, subscription = new SerialDisposable();
 	      var cancelable = immediateScheduler.scheduleRecursiveWithState(null, function (lastException, self) {
 	        if (isDisposed) { return; }
 	        var currentItem = tryCatch(e.next).call(e);
 	        if (currentItem === errorObj) { return o.onError(currentItem.e); }
-	
+
 	        if (currentItem.done) {
 	          return lastException !== null ? o.onError(lastException) : o.onCompleted();
 	        }
-	
+
 	        // Check if promise
 	        var currentValue = currentItem.value;
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(
@@ -15073,11 +15088,11 @@ module.exports =
 	    
 	    return CatchErrorObservable;
 	  }(ObservableBase));
-	
+
 	  Enumerable.prototype.catchError = function () {
 	    return new CatchErrorObservable(this);
 	  };
-	
+
 	  Enumerable.prototype.catchErrorWhen = function (notificationHandler) {
 	    var sources = this;
 	    return new AnonymousObservable(function (o) {
@@ -15085,9 +15100,9 @@ module.exports =
 	        notifier = new Subject(),
 	        handled = notificationHandler(exceptions),
 	        notificationDisposable = handled.subscribe(notifier);
-	
+
 	      var e = sources[$iterator$]();
-	
+
 	      var isDisposed,
 	        lastException,
 	        subscription = new SerialDisposable();
@@ -15095,7 +15110,7 @@ module.exports =
 	        if (isDisposed) { return; }
 	        var currentItem = tryCatch(e.next).call(e);
 	        if (currentItem === errorObj) { return o.onError(currentItem.e); }
-	
+
 	        if (currentItem.done) {
 	          if (lastException) {
 	            o.onError(lastException);
@@ -15104,11 +15119,11 @@ module.exports =
 	          }
 	          return;
 	        }
-	
+
 	        // Check if promise
 	        var currentValue = currentItem.value;
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var outer = new SingleAssignmentDisposable();
 	        var inner = new SingleAssignmentDisposable();
 	        subscription.setDisposable(new CompositeDisposable(inner, outer));
@@ -15120,12 +15135,12 @@ module.exports =
 	            }, function() {
 	              o.onCompleted();
 	            }));
-	
+
 	            exceptions.onNext(exn);
 	          },
 	          function() { o.onCompleted(); }));
 	      });
-	
+
 	      return new CompositeDisposable(notificationDisposable, subscription, cancelable, disposableCreate(function () {
 	        isDisposed = true;
 	      }));
@@ -15155,7 +15170,7 @@ module.exports =
 	    
 	    return RepeatEnumerable;
 	  }(Enumerable));
-	
+
 	  var enumerableRepeat = Enumerable.repeat = function (value, repeatCount) {
 	    return new RepeatEnumerable(value, repeatCount);
 	  };
@@ -15184,11 +15199,11 @@ module.exports =
 	    
 	    return OfEnumerable;
 	  }(Enumerable));
-	
+
 	  var enumerableOf = Enumerable.of = function (source, selector, thisArg) {
 	    return new OfEnumerable(source, selector, thisArg);
 	  };
-	
+
 	   /**
 	   *  Wraps the source sequence in order to run its observer callbacks on the specified scheduler.
 	   *
@@ -15204,14 +15219,14 @@ module.exports =
 	      return source.subscribe(new ObserveOnObserver(scheduler, observer));
 	    }, source);
 	  };
-	
+
 	   /**
 	   *  Wraps the source sequence in order to run its subscription and unsubscription logic on the specified scheduler. This operation is not commonly used;
 	   *  see the remarks section for more information on the distinction between subscribeOn and observeOn.
-	
+
 	   *  This only performs the side-effects of subscription and unsubscription on the specified scheduler. In order to invoke observer
 	   *  callbacks on a scheduler, use observeOn.
-	
+
 	   *  @param {Scheduler} scheduler Scheduler to perform subscription and unsubscription actions on.
 	   *  @returns {Observable} The source sequence whose subscriptions and unsubscriptions happen on the specified scheduler.
 	   */
@@ -15226,7 +15241,7 @@ module.exports =
 	      return d;
 	    }, source);
 	  };
-	
+
 		var FromPromiseObservable = (function(__super__) {
 			inherits(FromPromiseObservable, __super__);
 			function FromPromiseObservable(p) {
@@ -15279,18 +15294,18 @@ module.exports =
 	      });
 	    });
 	  };
-	
+
 	  var ToArrayObservable = (function(__super__) {
 	    inherits(ToArrayObservable, __super__);
 	    function ToArrayObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    ToArrayObservable.prototype.subscribeCore = function(o) {
 	      return this.source.subscribe(new InnerObserver(o));
 	    };
-	
+
 	    function InnerObserver(o) {
 	      this.o = o;
 	      this.a = [];
@@ -15320,10 +15335,10 @@ module.exports =
 	 
 	      return false;
 	    };
-	
+
 	    return ToArrayObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Creates an array from an observable sequence.
 	  * @returns {Observable} An observable sequence containing a single element with a list containing all the elements of the source sequence.
@@ -15331,7 +15346,7 @@ module.exports =
 	  observableProto.toArray = function () {
 	    return new ToArrayObservable(this);
 	  };
-	
+
 	  /**
 	   *  Creates an observable sequence from a specified subscribe method implementation.
 	   * @example
@@ -15344,7 +15359,7 @@ module.exports =
 	  Observable.create = Observable.createWithDisposable = function (subscribe, parent) {
 	    return new AnonymousObservable(subscribe, parent);
 	  };
-	
+
 	  /**
 	   *  Returns an observable sequence that invokes the specified factory function whenever a new observer subscribes.
 	   *
@@ -15365,35 +15380,35 @@ module.exports =
 	      return result.subscribe(observer);
 	    });
 	  };
-	
+
 	  var EmptyObservable = (function(__super__) {
 	    inherits(EmptyObservable, __super__);
 	    function EmptyObservable(scheduler) {
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    EmptyObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new EmptySink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    function EmptySink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    function scheduleItem(s, state) {
 	      state.onCompleted();
 	    }
-	
+
 	    EmptySink.prototype.run = function () {
 	      return this.parent.scheduler.scheduleWithState(this.observer, scheduleItem);
 	    };
-	
+
 	    return EmptyObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Returns an empty observable sequence, using the specified scheduler to send out the single OnCompleted message.
 	   *
@@ -15407,7 +15422,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
 	    return new EmptyObservable(scheduler);
 	  };
-	
+
 	  var FromObservable = (function(__super__) {
 	    inherits(FromObservable, __super__);
 	    function FromObservable(iterable, mapper, scheduler) {
@@ -15416,27 +15431,27 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    FromObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new FromSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return FromObservable;
 	  }(ObservableBase));
-	
+
 	  var FromSink = (function () {
 	    function FromSink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    FromSink.prototype.run = function () {
 	      var list = Object(this.parent.iterable),
 	          it = getIterable(list),
 	          observer = this.observer,
 	          mapper = this.parent.mapper;
-	
+
 	      function loopRecursive(i, recurse) {
 	        try {
 	          var next = it.next();
@@ -15446,9 +15461,9 @@ module.exports =
 	        if (next.done) {
 	          return observer.onCompleted();
 	        }
-	
+
 	        var result = next.value;
-	
+
 	        if (mapper) {
 	          try {
 	            result = mapper(result, i);
@@ -15456,71 +15471,71 @@ module.exports =
 	            return observer.onError(e);
 	          }
 	        }
-	
+
 	        observer.onNext(result);
 	        recurse(i + 1);
 	      }
-	
+
 	      return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	    };
-	
+
 	    return FromSink;
 	  }());
-	
+
 	  var maxSafeInteger = Math.pow(2, 53) - 1;
-	
+
 	  function StringIterable(str) {
 	    this._s = s;
 	  }
-	
+
 	  StringIterable.prototype[$iterator$] = function () {
 	    return new StringIterator(this._s);
 	  };
-	
+
 	  function StringIterator(str) {
 	    this._s = s;
 	    this._l = s.length;
 	    this._i = 0;
 	  }
-	
+
 	  StringIterator.prototype[$iterator$] = function () {
 	    return this;
 	  };
-	
+
 	  StringIterator.prototype.next = function () {
 	    return this._i < this._l ? { done: false, value: this._s.charAt(this._i++) } : doneEnumerator;
 	  };
-	
+
 	  function ArrayIterable(a) {
 	    this._a = a;
 	  }
-	
+
 	  ArrayIterable.prototype[$iterator$] = function () {
 	    return new ArrayIterator(this._a);
 	  };
-	
+
 	  function ArrayIterator(a) {
 	    this._a = a;
 	    this._l = toLength(a);
 	    this._i = 0;
 	  }
-	
+
 	  ArrayIterator.prototype[$iterator$] = function () {
 	    return this;
 	  };
-	
+
 	  ArrayIterator.prototype.next = function () {
 	    return this._i < this._l ? { done: false, value: this._a[this._i++] } : doneEnumerator;
 	  };
-	
+
 	  function numberIsFinite(value) {
 	    return typeof value === 'number' && root.isFinite(value);
 	  }
-	
+
 	  function isNan(n) {
 	    return n !== n;
 	  }
-	
+
 	  function getIterable(o) {
 	    var i = o[$iterator$], it;
 	    if (!i && typeof o === 'string') {
@@ -15534,14 +15549,14 @@ module.exports =
 	    if (!i) { throw new TypeError('Object is not iterable'); }
 	    return o[$iterator$]();
 	  }
-	
+
 	  function sign(value) {
 	    var number = +value;
 	    if (number === 0) { return number; }
 	    if (isNaN(number)) { return number; }
 	    return number < 0 ? -1 : 1;
 	  }
-	
+
 	  function toLength(o) {
 	    var len = +o.length;
 	    if (isNaN(len)) { return 0; }
@@ -15551,7 +15566,7 @@ module.exports =
 	    if (len > maxSafeInteger) { return maxSafeInteger; }
 	    return len;
 	  }
-	
+
 	  /**
 	  * This method creates a new Observable sequence from an array-like or iterable object.
 	  * @param {Any} arrayLike An array-like or iterable object to convert to an Observable sequence.
@@ -15572,7 +15587,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new FromObservable(iterable, mapper, scheduler);
 	  }
-	
+
 	  var FromArrayObservable = (function(__super__) {
 	    inherits(FromArrayObservable, __super__);
 	    function FromArrayObservable(args, scheduler) {
@@ -15580,20 +15595,20 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    FromArrayObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new FromArraySink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return FromArrayObservable;
 	  }(ObservableBase));
-	
+
 	  function FromArraySink(observer, parent) {
 	    this.observer = observer;
 	    this.parent = parent;
 	  }
-	
+
 	  FromArraySink.prototype.run = function () {
 	    var observer = this.observer, args = this.parent.args, len = args.length;
 	    function loopRecursive(i, recurse) {
@@ -15604,10 +15619,10 @@ module.exports =
 	        observer.onCompleted();
 	      }
 	    }
-	
+
 	    return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	  };
-	
+
 	  /**
 	  *  Converts an array to an observable sequence, using an optional scheduler to enumerate the array.
 	  * @deprecated use Observable.from or Observable.of
@@ -15618,7 +15633,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new FromArrayObservable(array, scheduler)
 	  };
-	
+
 	  /**
 	   *  Generates an observable sequence by running a state-driven loop producing the sequence's elements, using the specified scheduler to send out observer messages.
 	   *
@@ -15658,12 +15673,12 @@ module.exports =
 	      });
 	    });
 	  };
-	
+
 	  function observableOf (scheduler, array) {
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new FromArrayObservable(array, scheduler);
 	  }
-	
+
 	  /**
 	  *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
 	  * @returns {Observable} The observable sequence whose elements are pulled from the given arguments.
@@ -15673,7 +15688,7 @@ module.exports =
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    return new FromArrayObservable(args, currentThreadScheduler);
 	  };
-	
+
 	  /**
 	  *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
 	  * @param {Scheduler} scheduler A scheduler to use for scheduling the arguments.
@@ -15684,7 +15699,7 @@ module.exports =
 	    for(var i = 1; i < len; i++) { args[i - 1] = arguments[i]; }
 	    return new FromArrayObservable(args, scheduler);
 	  };
-	
+
 	  /**
 	   * Creates an Observable sequence from changes to an array using Array.observe.
 	   * @param {Array} array An array to observe changes.
@@ -15701,13 +15716,13 @@ module.exports =
 	      }
 	      
 	      Array.observe(array, observerFn);
-	
+
 	      return function () {
 	        Array.unobserve(array, observerFn);
 	      };
 	    });
 	  };
-	
+
 	  /**
 	   * Creates an Observable sequence from changes to an object using Object.observe.
 	   * @param {Object} obj An object to observe changes.
@@ -15722,28 +15737,28 @@ module.exports =
 	          observer.onNext(changes[i]);
 	        }
 	      }
-	
+
 	      Object.observe(obj, observerFn);
-	
+
 	      return function () {
 	        Object.unobserve(obj, observerFn);
 	      };
 	    });
 	  };
-	
+
 	  var NeverObservable = (function(__super__) {
 	    inherits(NeverObservable, __super__);
 	    function NeverObservable() {
 	      __super__.call(this);
 	    }
-	
+
 	    NeverObservable.prototype.subscribeCore = function (observer) {
 	      return disposableEmpty;
 	    };
-	
+
 	    return NeverObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   * Returns a non-terminating observable sequence, which can be used to denote an infinite duration (e.g. when using reactive joins).
 	   * @returns {Observable} An observable sequence whose observers will never get called.
@@ -15751,7 +15766,7 @@ module.exports =
 	  var observableNever = Observable.never = function () {
 	    return new NeverObservable();
 	  };
-	
+
 	  var PairsObservable = (function(__super__) {
 	    inherits(PairsObservable, __super__);
 	    function PairsObservable(obj, scheduler) {
@@ -15760,20 +15775,20 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    PairsObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new PairsSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return PairsObservable;
 	  }(ObservableBase));
-	
+
 	  function PairsSink(observer, parent) {
 	    this.observer = observer;
 	    this.parent = parent;
 	  }
-	
+
 	  PairsSink.prototype.run = function () {
 	    var observer = this.observer, obj = this.parent.obj, keys = this.parent.keys, len = keys.length;
 	    function loopRecursive(i, recurse) {
@@ -15785,10 +15800,10 @@ module.exports =
 	        observer.onCompleted();
 	      }
 	    }
-	
+
 	    return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	  };
-	
+
 	  /**
 	   * Convert an object into an observable sequence of [key, value] pairs.
 	   * @param {Object} obj The object to inspect.
@@ -15799,7 +15814,7 @@ module.exports =
 	    scheduler || (scheduler = currentThreadScheduler);
 	    return new PairsObservable(obj, scheduler);
 	  };
-	
+
 	    var RangeObservable = (function(__super__) {
 	    inherits(RangeObservable, __super__);
 	    function RangeObservable(start, count, scheduler) {
@@ -15808,21 +15823,21 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    RangeObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new RangeSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return RangeObservable;
 	  }(ObservableBase));
-	
+
 	  var RangeSink = (function () {
 	    function RangeSink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    RangeSink.prototype.run = function () {
 	      var start = this.parent.start, count = this.parent.rangeCount, observer = this.observer;
 	      function loopRecursive(i, recurse) {
@@ -15833,13 +15848,13 @@ module.exports =
 	          observer.onCompleted();
 	        }
 	      }
-	
+
 	      return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	    };
-	
+
 	    return RangeSink;
 	  }());
-	
+
 	  /**
 	  *  Generates an observable sequence of integral numbers within a specified range, using the specified scheduler to send out observer messages.
 	  * @param {Number} start The value of the first integer in the sequence.
@@ -15851,7 +15866,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new RangeObservable(start, count, scheduler);
 	  };
-	
+
 	  var RepeatObservable = (function(__super__) {
 	    inherits(RepeatObservable, __super__);
 	    function RepeatObservable(value, repeatCount, scheduler) {
@@ -15860,20 +15875,20 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    RepeatObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new RepeatSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    return RepeatObservable;
 	  }(ObservableBase));
-	
+
 	  function RepeatSink(observer, parent) {
 	    this.observer = observer;
 	    this.parent = parent;
 	  }
-	
+
 	  RepeatSink.prototype.run = function () {
 	    var observer = this.observer, value = this.parent.value;
 	    function loopRecursive(i, recurse) {
@@ -15884,10 +15899,10 @@ module.exports =
 	      if (i === 0) { return observer.onCompleted(); }
 	      recurse(i);
 	    }
-	
+
 	    return this.parent.scheduler.scheduleRecursiveWithState(this.parent.repeatCount, loopRecursive);
 	  };
-	
+
 	  /**
 	   *  Generates an observable sequence that repeats the given element the specified number of times, using the specified scheduler to send out observer messages.
 	   * @param {Mixed} value Element to repeat.
@@ -15899,7 +15914,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
 	    return new RepeatObservable(value, repeatCount, scheduler);
 	  };
-	
+
 	  var JustObservable = (function(__super__) {
 	    inherits(JustObservable, __super__);
 	    function JustObservable(value, scheduler) {
@@ -15907,30 +15922,30 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    JustObservable.prototype.subscribeCore = function (observer) {
 	      var sink = new JustSink(observer, this);
 	      return sink.run();
 	    };
-	
+
 	    function JustSink(observer, parent) {
 	      this.observer = observer;
 	      this.parent = parent;
 	    }
-	
+
 	    function scheduleItem(s, state) {
 	      var value = state[0], observer = state[1];
 	      observer.onNext(value);
 	      observer.onCompleted();
 	    }
-	
+
 	    JustSink.prototype.run = function () {
 	      return this.parent.scheduler.scheduleWithState([this.parent.value, this.observer], scheduleItem);
 	    };
-	
+
 	    return JustObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Returns an observable sequence that contains a single element, using the specified scheduler to send out observer messages.
 	   *  There is an alias called 'just' or browsers <IE9.
@@ -15942,7 +15957,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
 	    return new JustObservable(value, scheduler);
 	  };
-	
+
 	  var ThrowObservable = (function(__super__) {
 	    inherits(ThrowObservable, __super__);
 	    function ThrowObservable(error, scheduler) {
@@ -15950,29 +15965,29 @@ module.exports =
 	      this.scheduler = scheduler;
 	      __super__.call(this);
 	    }
-	
+
 	    ThrowObservable.prototype.subscribeCore = function (o) {
 	      var sink = new ThrowSink(o, this);
 	      return sink.run();
 	    };
-	
+
 	    function ThrowSink(o, p) {
 	      this.o = o;
 	      this.p = p;
 	    }
-	
+
 	    function scheduleItem(s, state) {
 	      var e = state[0], o = state[1];
 	      o.onError(e);
 	    }
-	
+
 	    ThrowSink.prototype.run = function () {
 	      return this.p.scheduler.scheduleWithState([this.p.error, this.o], scheduleItem);
 	    };
-	
+
 	    return ThrowObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Returns an observable sequence that terminates with an exception, using the specified scheduler to send out the single onError message.
 	   *  There is an alias to this method called 'throwError' for browsers <IE9.
@@ -15984,7 +15999,7 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
 	    return new ThrowObservable(error, scheduler);
 	  };
-	
+
 	  /**
 	   * Constructs an observable sequence that depends on a resource object, whose lifetime is tied to the resulting observable sequence's lifetime.
 	   * @param {Function} resourceFactory Factory function to obtain a resource object.
@@ -16004,7 +16019,7 @@ module.exports =
 	      return new CompositeDisposable(source.subscribe(observer), disposable);
 	    });
 	  };
-	
+
 	  /**
 	   * Propagates the observable sequence or Promise that reacts first.
 	   * @param {Observable} rightSource Second observable sequence or Promise.
@@ -16017,23 +16032,23 @@ module.exports =
 	        leftChoice = 'L', rightChoice = 'R',
 	        leftSubscription = new SingleAssignmentDisposable(),
 	        rightSubscription = new SingleAssignmentDisposable();
-	
+
 	      isPromise(rightSource) && (rightSource = observableFromPromise(rightSource));
-	
+
 	      function choiceL() {
 	        if (!choice) {
 	          choice = leftChoice;
 	          rightSubscription.dispose();
 	        }
 	      }
-	
+
 	      function choiceR() {
 	        if (!choice) {
 	          choice = rightChoice;
 	          leftSubscription.dispose();
 	        }
 	      }
-	
+
 	      leftSubscription.setDisposable(leftSource.subscribe(function (left) {
 	        choiceL();
 	        choice === leftChoice && observer.onNext(left);
@@ -16044,7 +16059,7 @@ module.exports =
 	        choiceL();
 	        choice === leftChoice && observer.onCompleted();
 	      }));
-	
+
 	      rightSubscription.setDisposable(rightSource.subscribe(function (right) {
 	        choiceR();
 	        choice === rightChoice && observer.onNext(right);
@@ -16055,11 +16070,11 @@ module.exports =
 	        choiceR();
 	        choice === rightChoice && observer.onCompleted();
 	      }));
-	
+
 	      return new CompositeDisposable(leftSubscription, rightSubscription);
 	    });
 	  };
-	
+
 	  /**
 	   * Propagates the observable sequence or Promise that reacts first.
 	   *
@@ -16074,7 +16089,7 @@ module.exports =
 	    } else {
 	      for(var i = 0, len = arguments.length; i < len; i++) { items.push(arguments[i]); }
 	    }
-	
+
 	    function func(previous, current) {
 	      return previous.amb(current);
 	    }
@@ -16083,7 +16098,7 @@ module.exports =
 	    }
 	    return acc;
 	  };
-	
+
 	  function observableCatchHandler(source, handler) {
 	    return new AnonymousObservable(function (o) {
 	      var d1 = new SingleAssignmentDisposable(), subscription = new SerialDisposable();
@@ -16095,16 +16110,16 @@ module.exports =
 	          return o.onError(ex);
 	        }
 	        isPromise(result) && (result = observableFromPromise(result));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(result.subscribe(o));
 	      }, function (x) { o.onCompleted(x); }));
-	
+
 	      return subscription;
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated by an exception with the next observable sequence.
 	   * @example
@@ -16118,7 +16133,7 @@ module.exports =
 	      observableCatchHandler(this, handlerOrSecond) :
 	      observableCatch([this, handlerOrSecond]);
 	  };
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated by an exception with the next observable sequence.
 	   * @param {Array | Arguments} args Arguments or an array to use as the next sequence if an error occurs.
@@ -16133,7 +16148,7 @@ module.exports =
 	    }
 	    return enumerableOf(items).catchError();
 	  };
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever any of the observable sequences or Promises produces an element.
 	   * This can be in the form of an argument list of observables or an array.
@@ -16153,7 +16168,7 @@ module.exports =
 	    }
 	    return combineLatest.apply(this, args);
 	  };
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever any of the observable sequences or Promises produces an element.
 	   *
@@ -16167,7 +16182,7 @@ module.exports =
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    var resultSelector = args.pop();
 	    Array.isArray(args[0]) && (args = args[0]);
-	
+
 	    return new AnonymousObservable(function (o) {
 	      var n = args.length,
 	        falseFactory = function () { return false; },
@@ -16175,7 +16190,7 @@ module.exports =
 	        hasValueAll = false,
 	        isDone = arrayInitialize(n, falseFactory),
 	        values = new Array(n);
-	
+
 	      function next(i) {
 	        hasValue[i] = true;
 	        if (hasValueAll || (hasValueAll = hasValue.every(identity))) {
@@ -16189,12 +16204,12 @@ module.exports =
 	          o.onCompleted();
 	        }
 	      }
-	
+
 	      function done (i) {
 	        isDone[i] = true;
 	        isDone.every(identity) && o.onCompleted();
 	      }
-	
+
 	      var subscriptions = new Array(n);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -16210,11 +16225,11 @@ module.exports =
 	          subscriptions[i] = sad;
 	        }(idx));
 	      }
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    }, this);
 	  };
-	
+
 	  /**
 	   * Concatenates all the observable sequences.  This takes in either an array or variable arguments to concatenate.
 	   * @returns {Observable} An observable sequence that contains the elements of each given sequence, in sequential order.
@@ -16224,7 +16239,7 @@ module.exports =
 	    args.unshift(this);
 	    return observableConcat.apply(null, args);
 	  };
-	
+
 		var ConcatObservable = (function(__super__) {
 			inherits(ConcatObservable, __super__);
 			function ConcatObservable(sources) {
@@ -16252,7 +16267,7 @@ module.exports =
 	        // Check if promise
 	        var currentValue = sources[i];
 	        isPromise(currentValue) && (currentValue = observableFromPromise(currentValue));
-	
+
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(
@@ -16261,7 +16276,7 @@ module.exports =
 	          function () { self(i + 1); }
 	        ));
 	      });
-	
+
 	      return new CompositeDisposable(subscription, cancelable, disposableCreate(function () {
 	        isDisposed = true;
 	      }));
@@ -16286,7 +16301,7 @@ module.exports =
 	    }
 	    return new ConcatObservable(args);
 	  };
-	
+
 	  /**
 	   * Concatenates an observable sequence of observable sequences.
 	   * @returns {Observable} An observable sequence that contains the elements of each observed inner sequence, in sequential order.
@@ -16294,26 +16309,26 @@ module.exports =
 	  observableProto.concatAll = observableProto.concatObservable = function () {
 	    return this.merge(1);
 	  };
-	
+
 	  var MergeObservable = (function (__super__) {
 	    inherits(MergeObservable, __super__);
-	
+
 	    function MergeObservable(source, maxConcurrent) {
 	      this.source = source;
 	      this.maxConcurrent = maxConcurrent;
 	      __super__.call(this);
 	    }
-	
+
 	    MergeObservable.prototype.subscribeCore = function(observer) {
 	      var g = new CompositeDisposable();
 	      g.add(this.source.subscribe(new MergeObserver(observer, this.maxConcurrent, g)));
 	      return g;
 	    };
-	
+
 	    return MergeObservable;
-	
+
 	  }(ObservableBase));
-	
+
 	  var MergeObserver = (function () {
 	    function MergeObserver(o, max, g) {
 	      this.o = o;
@@ -16359,10 +16374,10 @@ module.exports =
 	          this.o.onError(e);
 	          return true;
 	        }
-	
+
 	        return false;
 	      };
-	
+
 	      function InnerObserver(parent, sad) {
 	        this.parent = parent;
 	        this.sad = sad;
@@ -16395,17 +16410,17 @@ module.exports =
 	          this.parent.o.onError(e);
 	          return true;
 	        }
-	
+
 	        return false;
 	      };
-	
+
 	      return MergeObserver;
 	  }());
-	
-	
-	
-	
-	
+
+
+
+
+
 	  /**
 	  * Merges an observable sequence of observable sequences into an observable sequence, limiting the number of concurrent subscriptions to inner sequences.
 	  * Or merges two observable sequences into a single observable sequence.
@@ -16421,7 +16436,7 @@ module.exports =
 	      observableMerge(this, maxConcurrentOrOther) :
 	      new MergeObservable(this, maxConcurrentOrOther);
 	  };
-	
+
 	  /**
 	   * Merges all the observable sequences into a single observable sequence.
 	   * The scheduler is optional and if not specified, the immediate scheduler is used.
@@ -16444,15 +16459,15 @@ module.exports =
 	    }
 	    return observableOf(scheduler, sources).mergeAll();
 	  };
-	
+
 	  var MergeAllObservable = (function (__super__) {
 	    inherits(MergeAllObservable, __super__);
-	
+
 	    function MergeAllObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    MergeAllObservable.prototype.subscribeCore = function (observer) {
 	      var g = new CompositeDisposable(), m = new SingleAssignmentDisposable();
 	      g.add(m);
@@ -16470,9 +16485,9 @@ module.exports =
 	      if(this.isStopped) { return; }
 	      var sad = new SingleAssignmentDisposable();
 	      this.g.add(sad);
-	
+
 	      isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
-	
+
 	      sad.setDisposable(innerSource.subscribe(new InnerObserver(this, this.g, sad)));
 	    };
 	    MergeAllObserver.prototype.onError = function (e) {
@@ -16495,10 +16510,10 @@ module.exports =
 	        this.o.onError(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    function InnerObserver(parent, g, sad) {
 	      this.parent = parent;
 	      this.g = g;
@@ -16527,13 +16542,13 @@ module.exports =
 	        this.parent.o.onError(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    return MergeAllObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Merges an observable sequence of observable sequences into an observable sequence.
 	  * @returns {Observable} The observable sequence that merges the elements of the inner sequences.
@@ -16541,7 +16556,7 @@ module.exports =
 	  observableProto.mergeAll = observableProto.mergeObservable = function () {
 	    return new MergeAllObservable(this);
 	  };
-	
+
 	  var CompositeError = Rx.CompositeError = function(errors) {
 	    this.name = "NotImplementedError";
 	    this.innerErrors = errors;
@@ -16549,7 +16564,7 @@ module.exports =
 	    Error.call(this);
 	  }
 	  CompositeError.prototype = Error.prototype;
-	
+
 	  /**
 	  * Flattens an Observable that emits Observables into one Observable, in a way that allows an Observer to
 	  * receive all successfully emitted items from all of the source Observables without being interrupted by
@@ -16571,13 +16586,13 @@ module.exports =
 	      for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    }
 	    var source = observableOf(null, args);
-	
+
 	    return new AnonymousObservable(function (o) {
 	      var group = new CompositeDisposable(),
 	        m = new SingleAssignmentDisposable(),
 	        isStopped = false,
 	        errors = [];
-	
+
 	      function setCompletion() {
 	        if (errors.length === 0) {
 	          o.onCompleted();
@@ -16587,17 +16602,17 @@ module.exports =
 	          o.onError(new CompositeError(errors));
 	        }
 	      }
-	
+
 	      group.add(m);
-	
+
 	      m.setDisposable(source.subscribe(
 	        function (innerSource) {
 	          var innerSubscription = new SingleAssignmentDisposable();
 	          group.add(innerSubscription);
-	
+
 	          // Check for promises support
 	          isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
-	
+
 	          innerSubscription.setDisposable(innerSource.subscribe(
 	            function (x) { o.onNext(x); },
 	            function (e) {
@@ -16622,7 +16637,7 @@ module.exports =
 	      return group;
 	    });
 	  };
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated normally or by an exception with the next observable sequence.
 	   * @param {Observable} second Second observable sequence used to produce results after the first sequence terminates.
@@ -16632,7 +16647,7 @@ module.exports =
 	    if (!second) { throw new Error('Second observable is required'); }
 	    return onErrorResumeNext([this, second]);
 	  };
-	
+
 	  /**
 	   * Continues an observable sequence that is terminated normally or by an exception with the next observable sequence.
 	   *
@@ -16665,7 +16680,7 @@ module.exports =
 	      return new CompositeDisposable(subscription, cancelable);
 	    });
 	  };
-	
+
 	  /**
 	   * Returns the values from the source observable sequence only after the other observable sequence produces a value.
 	   * @param {Observable | Promise} other The observable sequence or Promise that triggers propagation of elements of the source sequence.
@@ -16680,9 +16695,9 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () {
 	        isOpen && o.onCompleted();
 	      }));
-	
+
 	      isPromise(other) && (other = observableFromPromise(other));
-	
+
 	      var rightSubscription = new SingleAssignmentDisposable();
 	      disposables.add(rightSubscription);
 	      rightSubscription.setDisposable(other.subscribe(function () {
@@ -16691,23 +16706,23 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () {
 	        rightSubscription.dispose();
 	      }));
-	
+
 	      return disposables;
 	    }, source);
 	  };
-	
+
 	  var SwitchObservable = (function(__super__) {
 	    inherits(SwitchObservable, __super__);
 	    function SwitchObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    SwitchObservable.prototype.subscribeCore = function (o) {
 	      var inner = new SerialDisposable(), s = this.source.subscribe(new SwitchObserver(o, inner));
 	      return new CompositeDisposable(s, inner);
 	    };
-	
+
 	    function SwitchObserver(o, inner) {
 	      this.o = o;
 	      this.inner = inner;
@@ -16746,7 +16761,7 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    function InnerObserver(parent, id) {
 	      this.parent = parent;
 	      this.id = id;
@@ -16780,10 +16795,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return SwitchObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Transforms an observable sequence of observable sequences into an observable sequence producing values only from the most recent observable sequence.
 	  * @returns {Observable} The observable sequence that at any point in time produces the elements of the most recent inner observable sequence that has been received.
@@ -16791,23 +16806,23 @@ module.exports =
 	  observableProto['switch'] = observableProto.switchLatest = function () {
 	    return new SwitchObservable(this);
 	  };
-	
+
 	  var TakeUntilObservable = (function(__super__) {
 	    inherits(TakeUntilObservable, __super__);
-	
+
 	    function TakeUntilObservable(source, other) {
 	      this.source = source;
 	      this.other = isPromise(other) ? observableFromPromise(other) : other;
 	      __super__.call(this);
 	    }
-	
+
 	    TakeUntilObservable.prototype.subscribeCore = function(o) {
 	      return new CompositeDisposable(
 	        this.source.subscribe(o),
 	        this.other.subscribe(new InnerObserver(o))
 	      );
 	    };
-	
+
 	    function InnerObserver(o) {
 	      this.o = o;
 	      this.isStopped = false;
@@ -16834,10 +16849,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return TakeUntilObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   * Returns the values from the source observable sequence until the other observable sequence produces a value.
 	   * @param {Observable | Promise} other Observable sequence or Promise that terminates propagation of elements of the source sequence.
@@ -16846,9 +16861,9 @@ module.exports =
 	  observableProto.takeUntil = function (other) {
 	    return new TakeUntilObservable(this, other);
 	  };
-	
+
 	  function falseFactory() { return false; }
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function only when the (first) source observable sequence produces an element.
 	   * @returns {Observable} An observable sequence containing the result of combining elements of the sources using the specified result selector function.
@@ -16858,13 +16873,13 @@ module.exports =
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    var resultSelector = args.pop(), source = this;
 	    Array.isArray(args[0]) && (args = args[0]);
-	
+
 	    return new AnonymousObservable(function (observer) {
 	      var n = args.length,
 	        hasValue = arrayInitialize(n, falseFactory),
 	        hasValueAll = false,
 	        values = new Array(n);
-	
+
 	      var subscriptions = new Array(n + 1);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -16878,7 +16893,7 @@ module.exports =
 	          subscriptions[i] = sad;
 	        }(idx));
 	      }
-	
+
 	      var sad = new SingleAssignmentDisposable();
 	      sad.setDisposable(source.subscribe(function (x) {
 	        var allValues = [x].concat(values);
@@ -16890,11 +16905,11 @@ module.exports =
 	        observer.onCompleted();
 	      }));
 	      subscriptions[n] = sad;
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    }, this);
 	  };
-	
+
 	  function zipArray(second, resultSelector) {
 	    var first = this;
 	    return new AnonymousObservable(function (o) {
@@ -16910,10 +16925,10 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, first);
 	  }
-	
+
 	  function falseFactory() { return false; }
 	  function emptyArrayFactory() { return []; }
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever all of the observable sequences or an array have produced an element at a corresponding index.
 	   * The last element in the arguments must be a function to invoke for each series of elements at corresponding indexes in the args.
@@ -16923,14 +16938,14 @@ module.exports =
 	    if (Array.isArray(arguments[0])) { return zipArray.apply(this, arguments); }
 	    var len = arguments.length, args = new Array(len);
 	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
-	
+
 	    var parent = this, resultSelector = args.pop();
 	    args.unshift(parent);
 	    return new AnonymousObservable(function (o) {
 	      var n = args.length,
 	        queues = arrayInitialize(n, emptyArrayFactory),
 	        isDone = arrayInitialize(n, falseFactory);
-	
+
 	      var subscriptions = new Array(n);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -16953,11 +16968,11 @@ module.exports =
 	          subscriptions[i] = sad;
 	        })(idx);
 	      }
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    }, parent);
 	  };
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever all of the observable sequences have produced an element at a corresponding index.
 	   * @param arguments Observable sources.
@@ -16970,10 +16985,10 @@ module.exports =
 	    var first = args.shift();
 	    return first.zip.apply(first, args);
 	  };
-	
+
 	  function falseFactory() { return false; }
 	  function arrayFactory() { return []; }
-	
+
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by emitting a list with the elements of the observable sequences at corresponding indexes.
 	   * @param arguments Observable sources.
@@ -16992,7 +17007,7 @@ module.exports =
 	      var n = sources.length,
 	        queues = arrayInitialize(n, arrayFactory),
 	        isDone = arrayInitialize(n, falseFactory);
-	
+
 	      var subscriptions = new Array(n);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
@@ -17011,11 +17026,11 @@ module.exports =
 	          }));
 	        })(idx);
 	      }
-	
+
 	      return new CompositeDisposable(subscriptions);
 	    });
 	  };
-	
+
 	  /**
 	   *  Hides the identity of an observable sequence.
 	   * @returns {Observable} An observable sequence that hides the identity of the source sequence.
@@ -17024,7 +17039,7 @@ module.exports =
 	    var source = this;
 	    return new AnonymousObservable(function (o) { return source.subscribe(o); }, source);
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into zero or more buffers which are produced based on element count information.
 	   *
@@ -17045,7 +17060,7 @@ module.exports =
 	      return x.length > 0;
 	    });
 	  };
-	
+
 	  /**
 	   * Dematerializes the explicit notification values of an observable sequence as implicit notifications.
 	   * @returns {Observable} An observable sequence exhibiting the behavior corresponding to the source sequence's notification values.
@@ -17056,7 +17071,7 @@ module.exports =
 	      return source.subscribe(function (x) { return x.accept(o); }, function(e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, this);
 	  };
-	
+
 	  /**
 	   *  Returns an observable sequence that contains only distinct contiguous elements according to the keySelector and the comparer.
 	   *
@@ -17091,7 +17106,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, this);
 	  };
-	
+
 	  var TapObservable = (function(__super__) {
 	    inherits(TapObservable,__super__);
 	    function TapObservable(source, observerOrOnNext, onError, onCompleted) {
@@ -17101,11 +17116,11 @@ module.exports =
 	        observerOrOnNext;
 	      __super__.call(this);
 	    }
-	
+
 	    TapObservable.prototype.subscribeCore = function(o) {
 	      return this.source.subscribe(new InnerObserver(o, this.t));
 	    };
-	
+
 	    function InnerObserver(o, t) {
 	      this.o = o;
 	      this.t = t;
@@ -17142,10 +17157,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return TapObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  *  Invokes an action for each element in the observable sequence and invokes an action upon graceful or exceptional termination of the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -17157,7 +17172,7 @@ module.exports =
 	  observableProto['do'] = observableProto.tap = observableProto.doAction = function (observerOrOnNext, onError, onCompleted) {
 	    return new TapObservable(this, observerOrOnNext, onError, onCompleted);
 	  };
-	
+
 	  /**
 	  *  Invokes an action for each element in the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -17168,7 +17183,7 @@ module.exports =
 	  observableProto.doOnNext = observableProto.tapOnNext = function (onNext, thisArg) {
 	    return this.tap(typeof thisArg !== 'undefined' ? function (x) { onNext.call(thisArg, x); } : onNext);
 	  };
-	
+
 	  /**
 	  *  Invokes an action upon exceptional termination of the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -17179,7 +17194,7 @@ module.exports =
 	  observableProto.doOnError = observableProto.tapOnError = function (onError, thisArg) {
 	    return this.tap(noop, typeof thisArg !== 'undefined' ? function (e) { onError.call(thisArg, e); } : onError);
 	  };
-	
+
 	  /**
 	  *  Invokes an action upon graceful termination of the observable sequence.
 	  *  This method can be used for debugging, logging, etc. of query behavior by intercepting the message stream to run arbitrary actions for messages on the pipeline.
@@ -17190,7 +17205,7 @@ module.exports =
 	  observableProto.doOnCompleted = observableProto.tapOnCompleted = function (onCompleted, thisArg) {
 	    return this.tap(noop, null, typeof thisArg !== 'undefined' ? function () { onCompleted.call(thisArg); } : onCompleted);
 	  };
-	
+
 	  /**
 	   *  Invokes a specified action after the source observable sequence terminates gracefully or exceptionally.
 	   * @param {Function} finallyAction Action to invoke after the source observable sequence terminates.
@@ -17217,7 +17232,7 @@ module.exports =
 	      });
 	    }, this);
 	  };
-	
+
 	  /**
 	   * @deprecated use #finally or #ensure instead.
 	   */
@@ -17225,19 +17240,19 @@ module.exports =
 	    //deprecate('finallyAction', 'finally or ensure');
 	    return this.ensure(action);
 	  };
-	
+
 	  var IgnoreElementsObservable = (function(__super__) {
 	    inherits(IgnoreElementsObservable, __super__);
-	
+
 	    function IgnoreElementsObservable(source) {
 	      this.source = source;
 	      __super__.call(this);
 	    }
-	
+
 	    IgnoreElementsObservable.prototype.subscribeCore = function (o) {
 	      return this.source.subscribe(new InnerObserver(o));
 	    };
-	
+
 	    function InnerObserver(o) {
 	      this.o = o;
 	      this.isStopped = false;
@@ -17262,13 +17277,13 @@ module.exports =
 	        this.observer.onError(e);
 	        return true;
 	      }
-	
+
 	      return false;
 	    };
-	
+
 	    return IgnoreElementsObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	   *  Ignores all elements in an observable sequence leaving only the termination messages.
 	   * @returns {Observable} An empty observable sequence that signals termination, successful or exceptional, of the source sequence.
@@ -17276,7 +17291,7 @@ module.exports =
 	  observableProto.ignoreElements = function () {
 	    return new IgnoreElementsObservable(this);
 	  };
-	
+
 	  /**
 	   *  Materializes the implicit notifications of an observable sequence as explicit notification values.
 	   * @returns {Observable} An observable sequence containing the materialized notification values from the source sequence.
@@ -17295,7 +17310,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Repeats the observable sequence a specified number of times. If the repeat count is not specified, the sequence repeats indefinitely.
 	   * @param {Number} [repeatCount]  Number of times to repeat the sequence. If not provided, repeats the sequence indefinitely.
@@ -17304,7 +17319,7 @@ module.exports =
 	  observableProto.repeat = function (repeatCount) {
 	    return enumerableRepeat(this, repeatCount).concat();
 	  };
-	
+
 	  /**
 	   *  Repeats the source observable sequence the specified number of times or until it successfully terminates. If the retry count is not specified, it retries indefinitely.
 	   *  Note if you encounter an error and want it to retry once, then you must use .retry(2);
@@ -17318,7 +17333,7 @@ module.exports =
 	  observableProto.retry = function (retryCount) {
 	    return enumerableRepeat(this, retryCount).catchError();
 	  };
-	
+
 	  /**
 	   *  Repeats the source observable sequence upon error each time the notifier emits or until it successfully terminates. 
 	   *  if the notifier completes, the observable sequence completes.
@@ -17341,14 +17356,14 @@ module.exports =
 	      this.seed = seed;
 	      __super__.call(this);
 	    }
-	
+
 	    ScanObservable.prototype.subscribeCore = function(observer) {
 	      return this.source.subscribe(new ScanObserver(observer,this));
 	    };
-	
+
 	    return ScanObservable;
 	  }(ObservableBase));
-	
+
 	  function ScanObserver(observer, parent) {
 	    this.observer = observer;
 	    this.accumulator = parent.accumulator;
@@ -17396,7 +17411,7 @@ module.exports =
 	    }
 	    return false;
 	  };
-	
+
 	  /**
 	  *  Applies an accumulator function over an observable sequence and returns each intermediate result. The optional seed value is used as the initial accumulator value.
 	  *  For aggregation behavior with no intermediate results, see Observable.aggregate.
@@ -17415,7 +17430,7 @@ module.exports =
 	    }
 	    return new ScanObservable(this, accumulator, hasSeed, seed);
 	  };
-	
+
 	  /**
 	   *  Bypasses a specified number of elements at the end of an observable sequence.
 	   * @description
@@ -17435,7 +17450,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Prepends a sequence of values to an observable sequence with an optional scheduler and an argument list of values to prepend.
 	   *  @example
@@ -17455,7 +17470,7 @@ module.exports =
 	    for(var args = [], i = start, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
 	    return enumerableOf([observableFromArray(args, scheduler), this]).concat();
 	  };
-	
+
 	  /**
 	   *  Returns a specified number of contiguous elements from the end of an observable sequence.
 	   * @description
@@ -17478,7 +17493,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns an array with the specified number of contiguous elements from the end of an observable sequence.
 	   *
@@ -17501,7 +17516,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into zero or more windows which are produced based on element count information.
 	   *
@@ -17519,22 +17534,22 @@ module.exports =
 	    skip == null && (skip = count);
 	    +skip || (skip = 0);
 	    Math.abs(skip) === Infinity && (skip = 0);
-	
+
 	    if (skip <= 0) { throw new ArgumentOutOfRangeError(); }
 	    return new AnonymousObservable(function (observer) {
 	      var m = new SingleAssignmentDisposable(),
 	        refCountDisposable = new RefCountDisposable(m),
 	        n = 0,
 	        q = [];
-	
+
 	      function createWindow () {
 	        var s = new Subject();
 	        q.push(s);
 	        observer.onNext(addRef(s, refCountDisposable));
 	      }
-	
+
 	      createWindow();
-	
+
 	      m.setDisposable(source.subscribe(
 	        function (x) {
 	          for (var i = 0, len = q.length; i < len; i++) { q[i].onNext(x); }
@@ -17554,7 +17569,7 @@ module.exports =
 	      return refCountDisposable;
 	    }, source);
 	  };
-	
+
 	  function concatMap(source, selector, thisArg) {
 	    var selectorFunc = bindCallback(selector, thisArg, 3);
 	    return source.map(function (x, i) {
@@ -17564,7 +17579,7 @@ module.exports =
 	      return result;
 	    }).concatAll();
 	  }
-	
+
 	  /**
 	   *  One of the Following:
 	   *  Projects each element of an observable sequence to an observable sequence and merges the resulting observable sequences into one observable sequence.
@@ -17590,7 +17605,7 @@ module.exports =
 	        var selectorResult = selector(x, i);
 	        isPromise(selectorResult) && (selectorResult = observableFromPromise(selectorResult));
 	        (isArrayLike(selectorResult) || isIterable(selectorResult)) && (selectorResult = observableFrom(selectorResult));
-	
+
 	        return selectorResult.map(function (y, i2) {
 	          return resultSelector(x, y, i, i2);
 	        });
@@ -17600,7 +17615,7 @@ module.exports =
 	      concatMap(this, selector, thisArg) :
 	      concatMap(this, function () { return selector; });
 	  };
-	
+
 	  /**
 	   * Projects each notification of an observable sequence to an observable sequence and concats the resulting observable sequences into one observable sequence.
 	   * @param {Function} onNext A transform function to apply to each element; the second parameter of the function represents the index of the source element.
@@ -17654,7 +17669,7 @@ module.exports =
 	        });
 	    }, this).concatAll();
 	  };
-	
+
 	    /**
 	     *  Returns the elements of the specified sequence or the specified value in a singleton sequence if the sequence is empty.
 	     *
@@ -17681,7 +17696,7 @@ module.exports =
 	        });
 	      }, source);
 	    };
-	
+
 	  // Swap out for Array.findIndex
 	  function arrayIndexOfComparer(array, item, comparer) {
 	    for (var i = 0, len = array.length; i < len; i++) {
@@ -17689,7 +17704,7 @@ module.exports =
 	    }
 	    return -1;
 	  }
-	
+
 	  function HashSet(comparer) {
 	    this.comparer = comparer;
 	    this.set = [];
@@ -17699,7 +17714,7 @@ module.exports =
 	    retValue && this.set.push(value);
 	    return retValue;
 	  };
-	
+
 	  /**
 	   *  Returns an observable sequence that contains only distinct elements according to the keySelector and the comparer.
 	   *  Usage of this operator should be considered carefully due to the maintenance of an internal lookup structure which can grow large.
@@ -17719,7 +17734,7 @@ module.exports =
 	      var hashSet = new HashSet(comparer);
 	      return source.subscribe(function (x) {
 	        var key = x;
-	
+
 	        if (keySelector) {
 	          try {
 	            key = keySelector(x);
@@ -17733,7 +17748,7 @@ module.exports =
 	      function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, this);
 	  };
-	
+
 	  /**
 	   *  Groups the elements of an observable sequence according to a specified key selector function and comparer and selects the resulting elements by using a specified function.
 	   *
@@ -17749,7 +17764,7 @@ module.exports =
 	  observableProto.groupBy = function (keySelector, elementSelector, comparer) {
 	    return this.groupByUntil(keySelector, elementSelector, observableNever, comparer);
 	  };
-	
+
 	    /**
 	     *  Groups the elements of an observable sequence according to a specified key selector function.
 	     *  A duration selector function is used to control the lifetime of groups. When a group expires, it receives an OnCompleted notification. When a new element with the same
@@ -17776,7 +17791,7 @@ module.exports =
 	        var map = new Dictionary(0, comparer),
 	          groupDisposable = new CompositeDisposable(),
 	          refCountDisposable = new RefCountDisposable(groupDisposable);
-	
+
 	        groupDisposable.add(source.subscribe(function (x) {
 	          var key;
 	          try {
@@ -17786,7 +17801,7 @@ module.exports =
 	            observer.onError(e);
 	            return;
 	          }
-	
+
 	          var fireNewMapEntry = false,
 	            writer = map.tryGetValue(key);
 	          if (!writer) {
@@ -17794,7 +17809,7 @@ module.exports =
 	            map.set(key, writer);
 	            fireNewMapEntry = true;
 	          }
-	
+
 	          if (fireNewMapEntry) {
 	            var group = new GroupedObservable(key, writer, refCountDisposable),
 	              durationGroup = new GroupedObservable(key, writer);
@@ -17805,17 +17820,17 @@ module.exports =
 	              observer.onError(e);
 	              return;
 	            }
-	
+
 	            observer.onNext(group);
-	
+
 	            var md = new SingleAssignmentDisposable();
 	            groupDisposable.add(md);
-	
+
 	            var expire = function () {
 	              map.remove(key) && writer.onCompleted();
 	              groupDisposable.remove(md);
 	            };
-	
+
 	            md.setDisposable(duration.take(1).subscribe(
 	              noop,
 	              function (exn) {
@@ -17825,7 +17840,7 @@ module.exports =
 	              expire)
 	            );
 	          }
-	
+
 	          var element;
 	          try {
 	            element = elementSelector(x);
@@ -17834,7 +17849,7 @@ module.exports =
 	            observer.onError(e);
 	            return;
 	          }
-	
+
 	          writer.onNext(element);
 	      }, function (ex) {
 	        map.getValues().forEach(handleError(ex));
@@ -17843,14 +17858,14 @@ module.exports =
 	        map.getValues().forEach(function (item) { item.onCompleted(); });
 	        observer.onCompleted();
 	      }));
-	
+
 	      return refCountDisposable;
 	    }, source);
 	  };
-	
+
 	  var MapObservable = (function (__super__) {
 	    inherits(MapObservable, __super__);
-	
+
 	    function MapObservable(source, selector, thisArg) {
 	      this.source = source;
 	      this.selector = bindCallback(selector, thisArg, 3);
@@ -17860,11 +17875,11 @@ module.exports =
 	    function innerMap(selector, self) {
 	      return function (x, i, o) { return selector.call(this, self.selector(x, i, o), i, o); }
 	    }
-	
+
 	    MapObservable.prototype.internalMap = function (selector, thisArg) {
 	      return new MapObservable(this.source, innerMap(selector, this), thisArg);
 	    };
-	
+
 	    MapObservable.prototype.subscribeCore = function (o) {
 	      return this.source.subscribe(new InnerObserver(o, this.selector, this));
 	    };
@@ -17901,11 +17916,11 @@ module.exports =
 	  
 	      return false;
 	    };
-	
+
 	    return MapObservable;
-	
+
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Projects each element of an observable sequence into a new form by incorporating the element's index.
 	  * @param {Function} selector A transform function to apply to each source element; the second parameter of the function represents the index of the source element.
@@ -17918,7 +17933,7 @@ module.exports =
 	      this.internalMap(selectorFn, thisArg) :
 	      new MapObservable(this, selectorFn, thisArg);
 	  };
-	
+
 	  /**
 	   * Retrieves the value of a specified nested property from all elements in
 	   * the Observable sequence.
@@ -17941,7 +17956,7 @@ module.exports =
 	      return currentProp;
 	    });
 	  };
-	
+
 	  function flatMap(source, selector, thisArg) {
 	    var selectorFunc = bindCallback(selector, thisArg, 3);
 	    return source.map(function (x, i) {
@@ -17951,7 +17966,7 @@ module.exports =
 	      return result;
 	    }).mergeAll();
 	  }
-	
+
 	  /**
 	   *  One of the Following:
 	   *  Projects each element of an observable sequence to an observable sequence and merges the resulting observable sequences into one observable sequence.
@@ -17977,7 +17992,7 @@ module.exports =
 	        var selectorResult = selector(x, i);
 	        isPromise(selectorResult) && (selectorResult = observableFromPromise(selectorResult));
 	        (isArrayLike(selectorResult) || isIterable(selectorResult)) && (selectorResult = observableFrom(selectorResult));
-	
+
 	        return selectorResult.map(function (y, i2) {
 	          return resultSelector(x, y, i, i2);
 	        });
@@ -17987,7 +18002,7 @@ module.exports =
 	      flatMap(this, selector, thisArg) :
 	      flatMap(this, function () { return selector; });
 	  };
-	
+
 	  /**
 	   * Projects each notification of an observable sequence to an observable sequence and merges the resulting observable sequences into one observable sequence.
 	   * @param {Function} onNext A transform function to apply to each element; the second parameter of the function represents the index of the source element.
@@ -18000,7 +18015,7 @@ module.exports =
 	    var source = this;
 	    return new AnonymousObservable(function (observer) {
 	      var index = 0;
-	
+
 	      return source.subscribe(
 	        function (x) {
 	          var result;
@@ -18039,7 +18054,7 @@ module.exports =
 	        });
 	    }, source).mergeAll();
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into a new sequence of observable sequences by incorporating the element's index and then
 	   *  transforms an observable sequence of observable sequences into an observable sequence producing values only from the most recent observable sequence.
@@ -18051,7 +18066,7 @@ module.exports =
 	  observableProto.selectSwitch = observableProto.flatMapLatest = observableProto.switchMap = function (selector, thisArg) {
 	    return this.select(selector, thisArg).switchLatest();
 	  };
-	
+
 	  var SkipObservable = (function(__super__) {
 	    inherits(SkipObservable, __super__);
 	    function SkipObservable(source, count) {
@@ -18134,7 +18149,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns a specified number of contiguous elements from the start of an observable sequence, using the specified scheduler for the edge case of take(0).
 	   *
@@ -18158,7 +18173,7 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns elements from an observable sequence as long as a specified condition is true.
 	   *  The element's index is used in the logic of the predicate function.
@@ -18188,16 +18203,16 @@ module.exports =
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, source);
 	  };
-	
+
 	  var FilterObservable = (function (__super__) {
 	    inherits(FilterObservable, __super__);
-	
+
 	    function FilterObservable(source, predicate, thisArg) {
 	      this.source = source;
 	      this.predicate = bindCallback(predicate, thisArg, 3);
 	      __super__.call(this);
 	    }
-	
+
 	    FilterObservable.prototype.subscribeCore = function (o) {
 	      return this.source.subscribe(new InnerObserver(o, this.predicate, this));
 	    };
@@ -18205,7 +18220,7 @@ module.exports =
 	    function innerPredicate(predicate, self) {
 	      return function(x, i, o) { return self.predicate(x, i, o) && predicate.call(this, x, i, o); }
 	    }
-	
+
 	    FilterObservable.prototype.internalFilter = function(predicate, thisArg) {
 	      return new FilterObservable(this.source, innerPredicate(predicate, this), thisArg);
 	    };
@@ -18241,11 +18256,11 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return FilterObservable;
-	
+
 	  }(ObservableBase));
-	
+
 	  /**
 	  *  Filters the elements of an observable sequence based on a predicate by incorporating the element's index.
 	  * @param {Function} predicate A function to test each source element for a condition; the second parameter of the function represents the index of the source element.
@@ -18256,7 +18271,7 @@ module.exports =
 	    return this instanceof FilterObservable ? this.internalFilter(predicate, thisArg) :
 	      new FilterObservable(this, predicate, thisArg);
 	  };
-	
+
 	  function extremaBy(source, keySelector, comparer) {
 	    return new AnonymousObservable(function (o) {
 	      var hasValue = false, lastKey = null, list = [];
@@ -18291,12 +18306,12 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  function firstOnly(x) {
 	    if (x.length === 0) { throw new EmptyError(); }
 	    return x[0];
 	  }
-	
+
 	  /**
 	   * Applies an accumulator function over an observable sequence, returning the result of the aggregation as a single element in the result sequence. The specified seed value is used as the initial accumulator value.
 	   * For aggregation behavior with incremental intermediate results, see Observable.scan.
@@ -18340,7 +18355,7 @@ module.exports =
 	      );
 	    }, source);
 	  };
-	
+
 	  var ReduceObservable = (function(__super__) {
 	    inherits(ReduceObservable, __super__);
 	    function ReduceObservable(source, acc, hasSeed, seed) {
@@ -18350,11 +18365,11 @@ module.exports =
 	      this.seed = seed;
 	      __super__.call(this);
 	    }
-	
+
 	    ReduceObservable.prototype.subscribeCore = function(observer) {
 	      return this.source.subscribe(new InnerObserver(observer,this));
 	    };
-	
+
 	    function InnerObserver(o, parent) {
 	      this.o = o;
 	      this.acc = parent.acc;
@@ -18397,10 +18412,10 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    return ReduceObservable;
 	  }(ObservableBase));
-	
+
 	  /**
 	  * Applies an accumulator function over an observable sequence, returning the result of the aggregation as a single element in the result sequence. The specified seed value is used as the initial accumulator value.
 	  * For aggregation behavior with incremental intermediate results, see Observable.scan.
@@ -18416,7 +18431,7 @@ module.exports =
 	    }
 	    return new ReduceObservable(this, accumulator, hasSeed, seed);
 	  };
-	
+
 	  /**
 	   * Determines whether any element of an observable sequence satisfies a condition if present, else if any items are in the sequence.
 	   * @param {Function} [predicate] A function to test each element for a condition.
@@ -18436,13 +18451,13 @@ module.exports =
 	        });
 	      }, source);
 	  };
-	
+
 	  /** @deprecated use #some instead */
 	  observableProto.any = function () {
 	    //deprecate('any', 'some');
 	    return this.some.apply(this, arguments);
 	  };
-	
+
 	  /**
 	   * Determines whether an observable sequence is empty.
 	   * @returns {Observable} An observable sequence containing a single element determining whether the source sequence is empty.
@@ -18450,7 +18465,7 @@ module.exports =
 	  observableProto.isEmpty = function () {
 	    return this.any().map(not);
 	  };
-	
+
 	  /**
 	   * Determines whether all elements of an observable sequence satisfy a condition.
 	   * @param {Function} [predicate] A function to test each element for a condition.
@@ -18460,13 +18475,13 @@ module.exports =
 	  observableProto.every = function (predicate, thisArg) {
 	    return this.filter(function (v) { return !predicate(v); }, thisArg).some().map(not);
 	  };
-	
+
 	  /** @deprecated use #every instead */
 	  observableProto.all = function () {
 	    //deprecate('all', 'every');
 	    return this.every.apply(this, arguments);
 	  };
-	
+
 	  /**
 	   * Determines whether an observable sequence includes a specified element with an optional equality comparer.
 	   * @param searchElement The value to locate in the source sequence.
@@ -18500,7 +18515,7 @@ module.exports =
 	        });
 	    }, this);
 	  };
-	
+
 	  /**
 	   * @deprecated use #includes instead.
 	   */
@@ -18508,7 +18523,7 @@ module.exports =
 	    //deprecate('contains', 'includes');
 	    observableProto.includes(searchElement, fromIndex);
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence containing a value that represents how many elements in the specified observable sequence satisfy a condition if provided, else the count of items.
 	   * @example
@@ -18523,7 +18538,7 @@ module.exports =
 	      this.filter(predicate, thisArg).count() :
 	      this.reduce(function (count) { return count + 1; }, 0);
 	  };
-	
+
 	  /**
 	   * Returns the first index at which a given element can be found in the observable sequence, or -1 if it is not present.
 	   * @param {Any} searchElement Element to locate in the array.
@@ -18555,7 +18570,7 @@ module.exports =
 	        });
 	    }, source);
 	  };
-	
+
 	  /**
 	   * Computes the sum of a sequence of values that are obtained by invoking an optional transform function on each element of the input sequence, else if not specified computes the sum on each item in the sequence.
 	   * @param {Function} [selector] A transform function to apply to each element.
@@ -18567,7 +18582,7 @@ module.exports =
 	      this.map(keySelector, thisArg).sum() :
 	      this.reduce(function (prev, curr) { return prev + curr; }, 0);
 	  };
-	
+
 	  /**
 	   * Returns the elements in an observable sequence with the minimum key value according to the specified comparer.
 	   * @example
@@ -18581,7 +18596,7 @@ module.exports =
 	    comparer || (comparer = defaultSubComparer);
 	    return extremaBy(this, keySelector, function (x, y) { return comparer(x, y) * -1; });
 	  };
-	
+
 	  /**
 	   * Returns the minimum element in an observable sequence according to the optional comparer else a default greater than less than check.
 	   * @example
@@ -18593,7 +18608,7 @@ module.exports =
 	  observableProto.min = function (comparer) {
 	    return this.minBy(identity, comparer).map(function (x) { return firstOnly(x); });
 	  };
-	
+
 	  /**
 	   * Returns the elements in an observable sequence with the maximum  key value according to the specified comparer.
 	   * @example
@@ -18607,7 +18622,7 @@ module.exports =
 	    comparer || (comparer = defaultSubComparer);
 	    return extremaBy(this, keySelector, comparer);
 	  };
-	
+
 	  /**
 	   * Returns the maximum value in an observable sequence according to the specified comparer.
 	   * @example
@@ -18619,7 +18634,7 @@ module.exports =
 	  observableProto.max = function (comparer) {
 	    return this.maxBy(identity, comparer).map(function (x) { return firstOnly(x); });
 	  };
-	
+
 	  /**
 	   * Computes the average of an observable sequence of values that are in the sequence or obtained by invoking a transform function on each element of the input sequence if present.
 	   * @param {Function} [selector] A transform function to apply to each element.
@@ -18639,7 +18654,7 @@ module.exports =
 	        return s.sum / s.count;
 	      });
 	  };
-	
+
 	  /**
 	   *  Determines whether two sequences are equal by comparing the elements pairwise using a specified equality comparer.
 	   *
@@ -18689,7 +18704,7 @@ module.exports =
 	          }
 	        }
 	      });
-	
+
 	      (isArrayLike(second) || isIterable(second)) && (second = observableFrom(second));
 	      isPromise(second) && (second = observableFromPromise(second));
 	      var subscription2 = second.subscribe(function (x) {
@@ -18727,7 +18742,7 @@ module.exports =
 	      return new CompositeDisposable(subscription1, subscription2);
 	    }, first);
 	  };
-	
+
 	  function elementAtOrDefault(source, index, hasDefault, defaultValue) {
 	    if (index < 0) { throw new ArgumentOutOfRangeError(); }
 	    return new AnonymousObservable(function (o) {
@@ -18747,7 +18762,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the element at a specified index in a sequence.
 	   * @example
@@ -18758,7 +18773,7 @@ module.exports =
 	  observableProto.elementAt =  function (index) {
 	    return elementAtOrDefault(this, index, false);
 	  };
-	
+
 	  /**
 	   * Returns the element at a specified index in a sequence or a default value if the index is out of range.
 	   * @example
@@ -18771,7 +18786,7 @@ module.exports =
 	  observableProto.elementAtOrDefault = function (index, defaultValue) {
 	    return elementAtOrDefault(this, index, true, defaultValue);
 	  };
-	
+
 	  function singleOrDefaultAsync(source, hasDefault, defaultValue) {
 	    return new AnonymousObservable(function (o) {
 	      var value = defaultValue, seenValue = false;
@@ -18792,7 +18807,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the only element of an observable sequence that satisfies the condition in the optional predicate, and reports an exception if there is not exactly one element in the observable sequence.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -18804,7 +18819,7 @@ module.exports =
 	      this.where(predicate, thisArg).single() :
 	      singleOrDefaultAsync(this, false);
 	  };
-	
+
 	  /**
 	   * Returns the only element of an observable sequence that matches the predicate, or a default value if no such element exists; this method reports an exception if there is more than one element in the observable sequence.
 	   * @example
@@ -18823,7 +18838,7 @@ module.exports =
 	      this.filter(predicate, thisArg).singleOrDefault(null, defaultValue) :
 	      singleOrDefaultAsync(this, true, defaultValue);
 	  };
-	
+
 	  function firstOrDefaultAsync(source, hasDefault, defaultValue) {
 	    return new AnonymousObservable(function (o) {
 	      return source.subscribe(function (x) {
@@ -18839,7 +18854,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the first element of an observable sequence that satisfies the condition in the predicate if present else the first item in the sequence.
 	   * @example
@@ -18854,7 +18869,7 @@ module.exports =
 	      this.where(predicate, thisArg).first() :
 	      firstOrDefaultAsync(this, false);
 	  };
-	
+
 	  /**
 	   * Returns the first element of an observable sequence that satisfies the condition in the predicate, or a default value if no such element exists.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -18867,7 +18882,7 @@ module.exports =
 	      this.where(predicate).firstOrDefault(null, defaultValue) :
 	      firstOrDefaultAsync(this, true, defaultValue);
 	  };
-	
+
 	  function lastOrDefaultAsync(source, hasDefault, defaultValue) {
 	    return new AnonymousObservable(function (o) {
 	      var value = defaultValue, seenValue = false;
@@ -18884,7 +18899,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns the last element of an observable sequence that satisfies the condition in the predicate if specified, else the last element.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -18896,7 +18911,7 @@ module.exports =
 	      this.where(predicate, thisArg).last() :
 	      lastOrDefaultAsync(this, false);
 	  };
-	
+
 	  /**
 	   * Returns the last element of an observable sequence that satisfies the condition in the predicate, or a default value if no such element exists.
 	   * @param {Function} [predicate] A predicate function to evaluate for elements in the source sequence.
@@ -18909,7 +18924,7 @@ module.exports =
 	      this.where(predicate, thisArg).lastOrDefault(null, defaultValue) :
 	      lastOrDefaultAsync(this, true, defaultValue);
 	  };
-	
+
 	  function findValue (source, predicate, thisArg, yieldIndex) {
 	    var callback = bindCallback(predicate, thisArg, 3);
 	    return new AnonymousObservable(function (o) {
@@ -18934,7 +18949,7 @@ module.exports =
 	      });
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Searches for an element that matches the conditions defined by the specified predicate, and returns the first occurrence within the entire Observable sequence.
 	   * @param {Function} predicate The predicate that defines the conditions of the element to search for.
@@ -18944,7 +18959,7 @@ module.exports =
 	  observableProto.find = function (predicate, thisArg) {
 	    return findValue(this, predicate, thisArg, false);
 	  };
-	
+
 	  /**
 	   * Searches for an element that matches the conditions defined by the specified predicate, and returns
 	   * an Observable sequence with the zero-based index of the first occurrence within the entire Observable sequence.
@@ -18955,7 +18970,7 @@ module.exports =
 	  observableProto.findIndex = function (predicate, thisArg) {
 	    return findValue(this, predicate, thisArg, true);
 	  };
-	
+
 	  /**
 	   * Converts the observable sequence to a Set if it exists.
 	   * @returns {Observable} An observable sequence with a single value of a Set containing the values from the observable sequence.
@@ -18974,7 +18989,7 @@ module.exports =
 	        });
 	    }, source);
 	  };
-	
+
 	  /**
 	  * Converts the observable sequence to a Map if it exists.
 	  * @param {Function} keySelector A function which produces the key for the Map.
@@ -18995,7 +19010,7 @@ module.exports =
 	            o.onError(e);
 	            return;
 	          }
-	
+
 	          var element = x;
 	          if (elementSelector) {
 	            try {
@@ -19005,7 +19020,7 @@ module.exports =
 	              return;
 	            }
 	          }
-	
+
 	          m.set(key, element);
 	        },
 	        function (e) { o.onError(e); },
@@ -19015,11 +19030,11 @@ module.exports =
 	        });
 	    }, source);
 	  };
-	
+
 	  var fnString = 'function',
 	      throwString = 'throw',
 	      isObject = Rx.internals.isObject;
-	
+
 	  function toThunk(obj, ctx) {
 	    if (Array.isArray(obj)) {  return objectToThunk.call(ctx, obj); }
 	    if (isGeneratorFunction(obj)) { return observableSpawn(obj.call(ctx)); }
@@ -19028,46 +19043,46 @@ module.exports =
 	    if (isPromise(obj)) { return promiseToThunk(obj); }
 	    if (typeof obj === fnString) { return obj; }
 	    if (isObject(obj) || Array.isArray(obj)) { return objectToThunk.call(ctx, obj); }
-	
+
 	    return obj;
 	  }
-	
+
 	  function objectToThunk(obj) {
 	    var ctx = this;
-	
+
 	    return function (done) {
 	      var keys = Object.keys(obj),
 	          pending = keys.length,
 	          results = new obj.constructor(),
 	          finished;
-	
+
 	      if (!pending) {
 	        timeoutScheduler.schedule(function () { done(null, results); });
 	        return;
 	      }
-	
+
 	      for (var i = 0, len = keys.length; i < len; i++) {
 	        run(obj[keys[i]], keys[i]);
 	      }
-	
+
 	      function run(fn, key) {
 	        if (finished) { return; }
 	        try {
 	          fn = toThunk(fn, ctx);
-	
+
 	          if (typeof fn !== fnString) {
 	            results[key] = fn;
 	            return --pending || done(null, results);
 	          }
-	
+
 	          fn.call(ctx, function(err, res) {
 	            if (finished) { return; }
-	
+
 	            if (err) {
 	              finished = true;
 	              return done(err);
 	            }
-	
+
 	            results[key] = res;
 	            --pending || done(null, results);
 	          });
@@ -19078,7 +19093,7 @@ module.exports =
 	      }
 	    }
 	  }
-	
+
 	  function observableToThunk(observable) {
 	    return function (fn) {
 	      var value, hasValue = false;
@@ -19093,7 +19108,7 @@ module.exports =
 	        });
 	    }
 	  }
-	
+
 	  function promiseToThunk(promise) {
 	    return function(fn) {
 	      promise.then(function(res) {
@@ -19101,19 +19116,19 @@ module.exports =
 	      }, fn);
 	    }
 	  }
-	
+
 	  function isObservable(obj) {
 	    return obj && typeof obj.subscribe === fnString;
 	  }
-	
+
 	  function isGeneratorFunction(obj) {
 	    return obj && obj.constructor && obj.constructor.name === 'GeneratorFunction';
 	  }
-	
+
 	  function isGenerator(obj) {
 	    return obj && typeof obj.next === fnString && typeof obj[throwString] === fnString;
 	  }
-	
+
 	  /*
 	   * Spawns a generator function which allows for Promises, Observable sequences, Arrays, Objects, Generators and functions.
 	   * @param {Function} The spawning function.
@@ -19121,36 +19136,36 @@ module.exports =
 	   */
 	  var observableSpawn = Rx.spawn = function (fn) {
 	    var isGenFun = isGeneratorFunction(fn);
-	
+
 	    return function (done) {
 	      var ctx = this,
 	        gen = fn;
-	
+
 	      if (isGenFun) {
 	        for(var args = [], i = 0, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
 	        var len = args.length,
 	          hasCallback = len && typeof args[len - 1] === fnString;
-	
+
 	        done = hasCallback ? args.pop() : handleError;
 	        gen = fn.apply(this, args);
 	      } else {
 	        done = done || handleError;
 	      }
-	
+
 	      next();
-	
+
 	      function exit(err, res) {
 	        timeoutScheduler.schedule(done.bind(ctx, err, res));
 	      }
-	
+
 	      function next(err, res) {
 	        var ret;
-	
+
 	        // multiple args
 	        if (arguments.length > 2) {
 	          for(var res = [], i = 1, len = arguments.length; i < len; i++) { res.push(arguments[i]); }
 	        }
-	
+
 	        if (err) {
 	          try {
 	            ret = gen[throwString](err);
@@ -19158,7 +19173,7 @@ module.exports =
 	            return exit(e);
 	          }
 	        }
-	
+
 	        if (!err) {
 	          try {
 	            ret = gen.next(res);
@@ -19166,13 +19181,13 @@ module.exports =
 	            return exit(e);
 	          }
 	        }
-	
+
 	        if (ret.done)  {
 	          return exit(null, ret.value);
 	        }
-	
+
 	        ret.value = toThunk(ret.value, ctx);
-	
+
 	        if (typeof ret.value === fnString) {
 	          var called = false;
 	          try {
@@ -19180,7 +19195,7 @@ module.exports =
 	              if (called) {
 	                return;
 	              }
-	
+
 	              called = true;
 	              next.apply(ctx, arguments);
 	            });
@@ -19189,27 +19204,27 @@ module.exports =
 	              if (called) {
 	                return;
 	              }
-	
+
 	              called = true;
 	              next.call(ctx, e);
 	            });
 	          }
 	          return;
 	        }
-	
+
 	        // Not supported
 	        next(new TypeError('Rx.spawn only supports a function, Promise, Observable, Object or Array.'));
 	      }
 	    }
 	  };
-	
+
 	  function handleError(err) {
 	    if (!err) { return; }
 	    timeoutScheduler.schedule(function() {
 	      throw err;
 	    });
 	  }
-	
+
 	  /**
 	   * Invokes the specified function asynchronously on the specified scheduler, surfacing the result through an observable sequence.
 	   *
@@ -19230,7 +19245,7 @@ module.exports =
 	  Observable.start = function (func, context, scheduler) {
 	    return observableToAsync(func, context, scheduler)();
 	  };
-	
+
 	  /**
 	   * Converts the function into an asynchronous function. Each invocation of the resulting asynchronous function causes an invocation of the original synchronous function on the specified scheduler.
 	   * @param {Function} function Function to convert to an asynchronous function.
@@ -19243,7 +19258,7 @@ module.exports =
 	    return function () {
 	      var args = arguments,
 	        subject = new AsyncSubject();
-	
+
 	      scheduler.schedule(function () {
 	        var result;
 	        try {
@@ -19258,7 +19273,7 @@ module.exports =
 	      return subject.asObservable();
 	    };
 	  };
-	
+
 	  /**
 	   * Converts a callback function to an observable sequence.
 	   *
@@ -19271,19 +19286,19 @@ module.exports =
 	    return function () {
 	      var len = arguments.length, args = new Array(len)
 	      for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
-	
+
 	      return new AnonymousObservable(function (observer) {
 	        function handler() {
 	          var len = arguments.length, results = new Array(len);
 	          for(var i = 0; i < len; i++) { results[i] = arguments[i]; }
-	
+
 	          if (selector) {
 	            try {
 	              results = selector.apply(context, results);
 	            } catch (e) {
 	              return observer.onError(e);
 	            }
-	
+
 	            observer.onNext(results);
 	          } else {
 	            if (results.length <= 1) {
@@ -19292,16 +19307,16 @@ module.exports =
 	              observer.onNext(results);
 	            }
 	          }
-	
+
 	          observer.onCompleted();
 	        }
-	
+
 	        args.push(handler);
 	        func.apply(context, args);
 	      }).publishLast().refCount();
 	    };
 	  };
-	
+
 	  /**
 	   * Converts a Node.js callback style function to an observable sequence.  This must be in function (err, ...) format.
 	   * @param {Function} func The function to call
@@ -19313,17 +19328,17 @@ module.exports =
 	    return function () {
 	      var len = arguments.length, args = new Array(len);
 	      for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
-	
+
 	      return new AnonymousObservable(function (observer) {
 	        function handler(err) {
 	          if (err) {
 	            observer.onError(err);
 	            return;
 	          }
-	
+
 	          var len = arguments.length, results = [];
 	          for(var i = 1; i < len; i++) { results[i - 1] = arguments[i]; }
-	
+
 	          if (selector) {
 	            try {
 	              results = selector.apply(context, results);
@@ -19338,16 +19353,16 @@ module.exports =
 	              observer.onNext(results);
 	            }
 	          }
-	
+
 	          observer.onCompleted();
 	        }
-	
+
 	        args.push(handler);
 	        func.apply(context, args);
 	      }).publishLast().refCount();
 	    };
 	  };
-	
+
 	  function createListener (element, name, handler) {
 	    if (element.addEventListener) {
 	      element.addEventListener(name, handler, false);
@@ -19357,10 +19372,10 @@ module.exports =
 	    }
 	    throw new Error('No listener found');
 	  }
-	
+
 	  function createEventListener (el, eventName, handler) {
 	    var disposables = new CompositeDisposable();
-	
+
 	    // Asume NodeList or HTMLCollection
 	    var toStr = Object.prototype.toString;
 	    if (toStr.call(el) === '[object NodeList]' || toStr.call(el) === '[object HTMLCollection]') {
@@ -19370,15 +19385,15 @@ module.exports =
 	    } else if (el) {
 	      disposables.add(createListener(el, eventName, handler));
 	    }
-	
+
 	    return disposables;
 	  }
-	
+
 	  /**
 	   * Configuration option to determine whether to use native events only
 	   */
 	  Rx.config.useNativeEvents = false;
-	
+
 	  /**
 	   * Creates an observable sequence by adding an event listener to the matching DOMElement or each item in the NodeList.
 	   *
@@ -19398,7 +19413,7 @@ module.exports =
 	        function (h) { element.removeListener(eventName, h); },
 	        selector);
 	    }
-	
+
 	    // Use only if non-native events are allowed
 	    if (!Rx.config.useNativeEvents) {
 	      // Handles jq, Angular.js, Zepto, Marionette, Ember.js
@@ -19415,7 +19430,7 @@ module.exports =
 	        eventName,
 	        function handler (e) {
 	          var results = e;
-	
+
 	          if (selector) {
 	            try {
 	              results = selector(arguments);
@@ -19423,12 +19438,12 @@ module.exports =
 	              return observer.onError(err);
 	            }
 	          }
-	
+
 	          observer.onNext(results);
 	        });
 	    }).publish().refCount();
 	  };
-	
+
 	  /**
 	   * Creates an observable sequence from an event emitter via an addHandler/removeHandler pair.
 	   * @param {Function} addHandler The function to add a handler to the emitter.
@@ -19449,7 +19464,7 @@ module.exports =
 	        }
 	        observer.onNext(result);
 	      }
-	
+
 	      var returnValue = addHandler(innerHandler);
 	      return disposableCreate(function () {
 	        if (removeHandler) {
@@ -19458,7 +19473,7 @@ module.exports =
 	      });
 	    }).publish().refCount();
 	  };
-	
+
 	  /**
 	   * Invokes the asynchronous function, surfacing the result through an observable sequence.
 	   * @param {Function} functionAsync Asynchronous function which returns a Promise to run.
@@ -19473,16 +19488,16 @@ module.exports =
 	    }
 	    return observableFromPromise(promise);
 	  }
-	
+
 	  var PausableObservable = (function (__super__) {
-	
+
 	    inherits(PausableObservable, __super__);
-	
+
 	    function subscribe(observer) {
 	      var conn = this.source.publish(),
 	        subscription = conn.subscribe(observer),
 	        connection = disposableEmpty;
-	
+
 	      var pausable = this.pauser.distinctUntilChanged().subscribe(function (b) {
 	        if (b) {
 	          connection = conn.connect();
@@ -19491,35 +19506,35 @@ module.exports =
 	          connection = disposableEmpty;
 	        }
 	      });
-	
+
 	      return new CompositeDisposable(subscription, connection, pausable);
 	    }
-	
+
 	    function PausableObservable(source, pauser) {
 	      this.source = source;
 	      this.controller = new Subject();
-	
+
 	      if (pauser && pauser.subscribe) {
 	        this.pauser = this.controller.merge(pauser);
 	      } else {
 	        this.pauser = this.controller;
 	      }
-	
+
 	      __super__.call(this, subscribe, source);
 	    }
-	
+
 	    PausableObservable.prototype.pause = function () {
 	      this.controller.onNext(false);
 	    };
-	
+
 	    PausableObservable.prototype.resume = function () {
 	      this.controller.onNext(true);
 	    };
-	
+
 	    return PausableObservable;
-	
+
 	  }(Observable));
-	
+
 	  /**
 	   * Pauses the underlying observable sequence based upon the observable sequence which yields true/false.
 	   * @example
@@ -19531,7 +19546,7 @@ module.exports =
 	  observableProto.pausable = function (pauser) {
 	    return new PausableObservable(this, pauser);
 	  };
-	
+
 	  function combineLatestSource(source, subject, resultSelector) {
 	    return new AnonymousObservable(function (o) {
 	      var hasValue = [false, false],
@@ -19539,7 +19554,7 @@ module.exports =
 	        isDone = false,
 	        values = new Array(2),
 	        err;
-	
+
 	      function next(x, i) {
 	        values[i] = x
 	        hasValue[i] = true;
@@ -19551,7 +19566,7 @@ module.exports =
 	        }
 	        isDone && values[1] && o.onCompleted();
 	      }
-	
+
 	      return new CompositeDisposable(
 	        source.subscribe(
 	          function (x) {
@@ -19580,16 +19595,16 @@ module.exports =
 	        );
 	    }, source);
 	  }
-	
+
 	  var PausableBufferedObservable = (function (__super__) {
-	
+
 	    inherits(PausableBufferedObservable, __super__);
-	
+
 	    function subscribe(o) {
 	      var q = [], previousShouldFire;
-	
+
 	      function drainQueue() { while (q.length > 0) { o.onNext(q.shift()); } }
-	
+
 	      var subscription =
 	        combineLatestSource(
 	          this.source,
@@ -19624,32 +19639,32 @@ module.exports =
 	          );
 	      return subscription;
 	    }
-	
+
 	    function PausableBufferedObservable(source, pauser) {
 	      this.source = source;
 	      this.controller = new Subject();
-	
+
 	      if (pauser && pauser.subscribe) {
 	        this.pauser = this.controller.merge(pauser);
 	      } else {
 	        this.pauser = this.controller;
 	      }
-	
+
 	      __super__.call(this, subscribe, source);
 	    }
-	
+
 	    PausableBufferedObservable.prototype.pause = function () {
 	      this.controller.onNext(false);
 	    };
-	
+
 	    PausableBufferedObservable.prototype.resume = function () {
 	      this.controller.onNext(true);
 	    };
-	
+
 	    return PausableBufferedObservable;
-	
+
 	  }(Observable));
-	
+
 	  /**
 	   * Pauses the underlying observable sequence based upon the observable sequence which yields true/false,
 	   * and yields the values that were buffered while paused.
@@ -19662,40 +19677,40 @@ module.exports =
 	  observableProto.pausableBuffered = function (subject) {
 	    return new PausableBufferedObservable(this, subject);
 	  };
-	
+
 	  var ControlledObservable = (function (__super__) {
-	
+
 	    inherits(ControlledObservable, __super__);
-	
+
 	    function subscribe (observer) {
 	      return this.source.subscribe(observer);
 	    }
-	
+
 	    function ControlledObservable (source, enableQueue, scheduler) {
 	      __super__.call(this, subscribe, source);
 	      this.subject = new ControlledSubject(enableQueue, scheduler);
 	      this.source = source.multicast(this.subject).refCount();
 	    }
-	
+
 	    ControlledObservable.prototype.request = function (numberOfItems) {
 	      return this.subject.request(numberOfItems == null ? -1 : numberOfItems);
 	    };
-	
+
 	    return ControlledObservable;
-	
+
 	  }(Observable));
-	
+
 	  var ControlledSubject = (function (__super__) {
-	
+
 	    function subscribe (observer) {
 	      return this.subject.subscribe(observer);
 	    }
-	
+
 	    inherits(ControlledSubject, __super__);
-	
+
 	    function ControlledSubject(enableQueue, scheduler) {
 	      enableQueue == null && (enableQueue = true);
-	
+
 	      __super__.call(this, subscribe);
 	      this.subject = new Subject();
 	      this.enableQueue = enableQueue;
@@ -19707,7 +19722,7 @@ module.exports =
 	      this.hasCompleted = false;
 	      this.scheduler = scheduler || currentThreadScheduler;
 	    }
-	
+
 	    addProperties(ControlledSubject.prototype, Observer, {
 	      onCompleted: function () {
 	        this.hasCompleted = true;
@@ -19728,7 +19743,7 @@ module.exports =
 	      },
 	      onNext: function (value) {
 	        var hasRequested = false;
-	
+
 	        if (this.requestedCount === 0) {
 	          this.enableQueue && this.queue.push(Notification.createOnNext(value));
 	        } else {
@@ -19750,16 +19765,16 @@ module.exports =
 	              this.queue = [];
 	            }
 	          }
-	
+
 	          return { numberOfItems : numberOfItems, returnValue: this.queue.length !== 0};
 	        }
-	
+
 	        return { numberOfItems: numberOfItems, returnValue: false };
 	      },
 	      request: function (number) {
 	        this.disposeCurrentRequest();
 	        var self = this;
-	
+
 	        this.requestedDisposable = this.scheduler.scheduleWithState(number,
 	        function(s, i) {
 	          var r = self._processRequest(i), remaining = r.numberOfItems;
@@ -19770,7 +19785,7 @@ module.exports =
 	            });
 	          }
 	        });
-	
+
 	        return this.requestedDisposable;
 	      },
 	      disposeCurrentRequest: function () {
@@ -19778,10 +19793,10 @@ module.exports =
 	        this.requestedDisposable = disposableEmpty;
 	      }
 	    });
-	
+
 	    return ControlledSubject;
 	  }(Observable));
-	
+
 	  /**
 	   * Attaches a controller to the observable sequence with the ability to queue.
 	   * @example
@@ -19792,66 +19807,66 @@ module.exports =
 	   * @returns {Observable} The observable sequence which only propagates values on request.
 	   */
 	  observableProto.controlled = function (enableQueue, scheduler) {
-	
+
 	    if (enableQueue && isScheduler(enableQueue)) {
 	        scheduler = enableQueue;
 	        enableQueue = true;
 	    }
-	
+
 	    if (enableQueue == null) {  enableQueue = true; }
 	    return new ControlledObservable(this, enableQueue, scheduler);
 	  };
-	
+
 	  var StopAndWaitObservable = (function (__super__) {
-	
+
 	    function subscribe (observer) {
 	      this.subscription = this.source.subscribe(new StopAndWaitObserver(observer, this, this.subscription));
-	
+
 	      var self = this;
 	      timeoutScheduler.schedule(function () { self.source.request(1); });
-	
+
 	      return this.subscription;
 	    }
-	
+
 	    inherits(StopAndWaitObservable, __super__);
-	
+
 	    function StopAndWaitObservable (source) {
 	      __super__.call(this, subscribe, source);
 	      this.source = source;
 	    }
-	
+
 	    var StopAndWaitObserver = (function (__sub__) {
-	
+
 	      inherits(StopAndWaitObserver, __sub__);
-	
+
 	      function StopAndWaitObserver (observer, observable, cancel) {
 	        __sub__.call(this);
 	        this.observer = observer;
 	        this.observable = observable;
 	        this.cancel = cancel;
 	      }
-	
+
 	      var stopAndWaitObserverProto = StopAndWaitObserver.prototype;
-	
+
 	      stopAndWaitObserverProto.completed = function () {
 	        this.observer.onCompleted();
 	        this.dispose();
 	      };
-	
+
 	      stopAndWaitObserverProto.error = function (error) {
 	        this.observer.onError(error);
 	        this.dispose();
 	      }
-	
+
 	      stopAndWaitObserverProto.next = function (value) {
 	        this.observer.onNext(value);
-	
+
 	        var self = this;
 	        timeoutScheduler.schedule(function () {
 	          self.observable.source.request(1);
 	        });
 	      };
-	
+
 	      stopAndWaitObserverProto.dispose = function () {
 	        this.observer = null;
 	        if (this.cancel) {
@@ -19860,14 +19875,14 @@ module.exports =
 	        }
 	        __sub__.prototype.dispose.call(this);
 	      };
-	
+
 	      return StopAndWaitObserver;
 	    }(AbstractObserver));
-	
+
 	    return StopAndWaitObservable;
 	  }(Observable));
-	
-	
+
+
 	  /**
 	   * Attaches a stop and wait observable to the current observable.
 	   * @returns {Observable} A stop and wait observable.
@@ -19875,54 +19890,54 @@ module.exports =
 	  ControlledObservable.prototype.stopAndWait = function () {
 	    return new StopAndWaitObservable(this);
 	  };
-	
+
 	  var WindowedObservable = (function (__super__) {
-	
+
 	    function subscribe (observer) {
 	      this.subscription = this.source.subscribe(new WindowedObserver(observer, this, this.subscription));
-	
+
 	      var self = this;
 	      timeoutScheduler.schedule(function () {
 	        self.source.request(self.windowSize);
 	      });
-	
+
 	      return this.subscription;
 	    }
-	
+
 	    inherits(WindowedObservable, __super__);
-	
+
 	    function WindowedObservable(source, windowSize) {
 	      __super__.call(this, subscribe, source);
 	      this.source = source;
 	      this.windowSize = windowSize;
 	    }
-	
+
 	    var WindowedObserver = (function (__sub__) {
-	
+
 	      inherits(WindowedObserver, __sub__);
-	
+
 	      function WindowedObserver(observer, observable, cancel) {
 	        this.observer = observer;
 	        this.observable = observable;
 	        this.cancel = cancel;
 	        this.received = 0;
 	      }
-	
+
 	      var windowedObserverPrototype = WindowedObserver.prototype;
-	
+
 	      windowedObserverPrototype.completed = function () {
 	        this.observer.onCompleted();
 	        this.dispose();
 	      };
-	
+
 	      windowedObserverPrototype.error = function (error) {
 	        this.observer.onError(error);
 	        this.dispose();
 	      };
-	
+
 	      windowedObserverPrototype.next = function (value) {
 	        this.observer.onNext(value);
-	
+
 	        this.received = ++this.received % this.observable.windowSize;
 	        if (this.received === 0) {
 	          var self = this;
@@ -19931,7 +19946,7 @@ module.exports =
 	          });
 	        }
 	      };
-	
+
 	      windowedObserverPrototype.dispose = function () {
 	        this.observer = null;
 	        if (this.cancel) {
@@ -19940,13 +19955,13 @@ module.exports =
 	        }
 	        __sub__.prototype.dispose.call(this);
 	      };
-	
+
 	      return WindowedObserver;
 	    }(AbstractObserver));
-	
+
 	    return WindowedObservable;
 	  }(Observable));
-	
+
 	  /**
 	   * Creates a sliding windowed observable based upon the window size.
 	   * @param {Number} windowSize The number of items in the window
@@ -19955,7 +19970,7 @@ module.exports =
 	  ControlledObservable.prototype.windowed = function (windowSize) {
 	    return new WindowedObservable(this, windowSize);
 	  };
-	
+
 	  /**
 	   * Pipes the existing Observable sequence into a Node.js Stream.
 	   * @param {Stream} dest The destination Node.js stream.
@@ -19963,13 +19978,13 @@ module.exports =
 	   */
 	  observableProto.pipe = function (dest) {
 	    var source = this.pausableBuffered();
-	
+
 	    function onDrain() {
 	      source.resume();
 	    }
-	
+
 	    dest.addListener('drain', onDrain);
-	
+
 	    source.subscribe(
 	      function (x) {
 	        !dest.write(String(x)) && source.pause();
@@ -19982,12 +19997,12 @@ module.exports =
 	        !dest._isStdio && dest.end();
 	        dest.removeListener('drain', onDrain);
 	      });
-	
+
 	    source.resume();
-	
+
 	    return dest;
 	  };
-	
+
 	  /**
 	   * Multicasts the source sequence notifications through an instantiated subject into all uses of the sequence within a selector function. Each
 	   * subscription to the resulting sequence causes a separate multicast invocation, exposing the sequence resulting from the selector function's
@@ -20014,7 +20029,7 @@ module.exports =
 	      }, source) :
 	      new ConnectableObservable(source, subjectOrSubjectSelector);
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence that is the result of invoking the selector on a connectable observable sequence that shares a single subscription to the underlying sequence.
 	   * This operator is a specialization of Multicast using a regular Subject.
@@ -20031,7 +20046,7 @@ module.exports =
 	      this.multicast(function () { return new Subject(); }, selector) :
 	      this.multicast(new Subject());
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence that shares a single subscription to the underlying sequence.
 	   * This operator is a specialization of publish which creates a subscription when the number of observers goes from zero to one, then shares that subscription with all subsequent observers until the number of observers returns to zero, at which point the subscription is disposed.
@@ -20040,7 +20055,7 @@ module.exports =
 	  observableProto.share = function () {
 	    return this.publish().refCount();
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence that is the result of invoking the selector on a connectable observable sequence that shares a single subscription to the underlying sequence containing only the last notification.
 	   * This operator is a specialization of Multicast using a AsyncSubject.
@@ -20057,7 +20072,7 @@ module.exports =
 	      this.multicast(function () { return new AsyncSubject(); }, selector) :
 	      this.multicast(new AsyncSubject());
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence that is the result of invoking the selector on a connectable observable sequence that shares a single subscription to the underlying sequence and starts with initialValue.
 	   * This operator is a specialization of Multicast using a BehaviorSubject.
@@ -20077,7 +20092,7 @@ module.exports =
 	      }, initialValueOrSelector) :
 	      this.multicast(new BehaviorSubject(initialValueOrSelector));
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence that shares a single subscription to the underlying sequence and starts with an initialValue.
 	   * This operator is a specialization of publishValue which creates a subscription when the number of observers goes from zero to one, then shares that subscription with all subsequent observers until the number of observers returns to zero, at which point the subscription is disposed.
@@ -20087,7 +20102,7 @@ module.exports =
 	  observableProto.shareValue = function (initialValue) {
 	    return this.publishValue(initialValue).refCount();
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence that is the result of invoking the selector on a connectable observable sequence that shares a single subscription to the underlying sequence replaying notifications subject to a maximum time length for the replay buffer.
 	   * This operator is a specialization of Multicast using a ReplaySubject.
@@ -20109,7 +20124,7 @@ module.exports =
 	      this.multicast(function () { return new ReplaySubject(bufferSize, windowSize, scheduler); }, selector) :
 	      this.multicast(new ReplaySubject(bufferSize, windowSize, scheduler));
 	  };
-	
+
 	  /**
 	   * Returns an observable sequence that shares a single subscription to the underlying sequence replaying notifications subject to a maximum time length for the replay buffer.
 	   * This operator is a specialization of replay which creates a subscription when the number of observers goes from zero to one, then shares that subscription with all subsequent observers until the number of observers returns to zero, at which point the subscription is disposed.
@@ -20119,7 +20134,7 @@ module.exports =
 	   * var res = source.shareReplay(3, 500);
 	   * var res = source.shareReplay(3, 500, scheduler);
 	   *
-	
+
 	   * @param bufferSize [Optional] Maximum element count of the replay buffer.
 	   * @param window [Optional] Maximum time length of the replay buffer.
 	   * @param scheduler [Optional] Scheduler where connected observers within the selector function will be invoked on.
@@ -20128,12 +20143,12 @@ module.exports =
 	  observableProto.shareReplay = function (bufferSize, windowSize, scheduler) {
 	    return this.replay(null, bufferSize, windowSize, scheduler).refCount();
 	  };
-	
+
 	  var InnerSubscription = function (subject, observer) {
 	    this.subject = subject;
 	    this.observer = observer;
 	  };
-	
+
 	  InnerSubscription.prototype.dispose = function () {
 	    if (!this.subject.isDisposed && this.observer !== null) {
 	      var idx = this.subject.observers.indexOf(this.observer);
@@ -20141,7 +20156,7 @@ module.exports =
 	      this.observer = null;
 	    }
 	  };
-	
+
 	  /**
 	   *  Represents a value that changes over time.
 	   *  Observers can subscribe to the subject to receive the last (or initial) value and all subsequent notifications.
@@ -20161,9 +20176,9 @@ module.exports =
 	      }
 	      return disposableEmpty;
 	    }
-	
+
 	    inherits(BehaviorSubject, __super__);
-	
+
 	    /**
 	     *  Initializes a new instance of the BehaviorSubject class which creates a subject that caches its last value and starts with the specified value.
 	     *  @param {Mixed} value Initial value sent to observers when no other value has been received by the subject yet.
@@ -20176,7 +20191,7 @@ module.exports =
 	      this.isStopped = false,
 	      this.hasError = false;
 	    }
-	
+
 	    addProperties(BehaviorSubject.prototype, Observer, {
 	      /**
 	       * Gets the current value or throws an exception.
@@ -20207,7 +20222,7 @@ module.exports =
 	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	          os[i].onCompleted();
 	        }
-	
+
 	        this.observers.length = 0;
 	      },
 	      /**
@@ -20220,11 +20235,11 @@ module.exports =
 	        this.isStopped = true;
 	        this.hasError = true;
 	        this.error = error;
-	
+
 	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	          os[i].onError(error);
 	        }
-	
+
 	        this.observers.length = 0;
 	      },
 	      /**
@@ -20249,48 +20264,48 @@ module.exports =
 	        this.exception = null;
 	      }
 	    });
-	
+
 	    return BehaviorSubject;
 	  }(Observable));
-	
+
 	  /**
 	   * Represents an object that is both an observable sequence as well as an observer.
 	   * Each notification is broadcasted to all subscribed and future observers, subject to buffer trimming policies.
 	   */
 	  var ReplaySubject = Rx.ReplaySubject = (function (__super__) {
-	
+
 	    var maxSafeInteger = Math.pow(2, 53) - 1;
-	
+
 	    function createRemovableDisposable(subject, observer) {
 	      return disposableCreate(function () {
 	        observer.dispose();
 	        !subject.isDisposed && subject.observers.splice(subject.observers.indexOf(observer), 1);
 	      });
 	    }
-	
+
 	    function subscribe(observer) {
 	      var so = new ScheduledObserver(this.scheduler, observer),
 	        subscription = createRemovableDisposable(this, so);
 	      checkDisposed(this);
 	      this._trim(this.scheduler.now());
 	      this.observers.push(so);
-	
+
 	      for (var i = 0, len = this.q.length; i < len; i++) {
 	        so.onNext(this.q[i].value);
 	      }
-	
+
 	      if (this.hasError) {
 	        so.onError(this.error);
 	      } else if (this.isStopped) {
 	        so.onCompleted();
 	      }
-	
+
 	      so.ensureActive();
 	      return subscription;
 	    }
-	
+
 	    inherits(ReplaySubject, __super__);
-	
+
 	    /**
 	     *  Initializes a new instance of the ReplaySubject class with the specified buffer size, window size and scheduler.
 	     *  @param {Number} [bufferSize] Maximum element count of the replay buffer.
@@ -20309,7 +20324,7 @@ module.exports =
 	      this.error = null;
 	      __super__.call(this, subscribe);
 	    }
-	
+
 	    addProperties(ReplaySubject.prototype, Observer.prototype, {
 	      /**
 	       * Indicates whether the subject has observers subscribed to it.
@@ -20336,7 +20351,7 @@ module.exports =
 	        var now = this.scheduler.now();
 	        this.q.push({ interval: now, value: value });
 	        this._trim(now);
-	
+
 	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	          var observer = os[i];
 	          observer.onNext(value);
@@ -20386,18 +20401,18 @@ module.exports =
 	        this.observers = null;
 	      }
 	    });
-	
+
 	    return ReplaySubject;
 	  }(Observable));
-	
+
 	  var ConnectableObservable = Rx.ConnectableObservable = (function (__super__) {
 	    inherits(ConnectableObservable, __super__);
-	
+
 	    function ConnectableObservable(source, subject) {
 	      var hasSubscription = false,
 	        subscription,
 	        sourceObservable = source.asObservable();
-	
+
 	      this.connect = function () {
 	        if (!hasSubscription) {
 	          hasSubscription = true;
@@ -20407,10 +20422,10 @@ module.exports =
 	        }
 	        return subscription;
 	      };
-	
+
 	      __super__.call(this, function (o) { return subject.subscribe(o); });
 	    }
-	
+
 	    ConnectableObservable.prototype.refCount = function () {
 	      var connectableSubscription, count = 0, source = this;
 	      return new AnonymousObservable(function (observer) {
@@ -20423,10 +20438,10 @@ module.exports =
 	          };
 	      });
 	    };
-	
+
 	    return ConnectableObservable;
 	  }(Observable));
-	
+
 	  /**
 	   * Returns an observable sequence that shares a single subscription to the underlying sequence. This observable sequence
 	   * can be resubscribed to, even if all prior subscriptions have ended. (unlike `.publish().refCount()`)
@@ -20434,7 +20449,7 @@ module.exports =
 	   */
 	  observableProto.singleInstance = function() {
 	    var source = this, hasObservable = false, observable;
-	
+
 	    function getObservable() {
 	      if (!hasObservable) {
 	        hasObservable = true;
@@ -20442,18 +20457,18 @@ module.exports =
 	      }
 	      return observable;
 	    };
-	
+
 	    return new AnonymousObservable(function(o) {
 	      return getObservable().subscribe(o);
 	    });
 	  };
-	
+
 	  var Dictionary = (function () {
-	
+
 	    var primes = [1, 3, 7, 13, 31, 61, 127, 251, 509, 1021, 2039, 4093, 8191, 16381, 32749, 65521, 131071, 262139, 524287, 1048573, 2097143, 4194301, 8388593, 16777213, 33554393, 67108859, 134217689, 268435399, 536870909, 1073741789, 2147483647],
 	      noSuchkey = "no such key",
 	      duplicatekey = "duplicate key";
-	
+
 	    function isPrime(candidate) {
 	      if ((candidate & 1) === 0) { return candidate === 2; }
 	      var num1 = Math.sqrt(candidate),
@@ -20464,7 +20479,7 @@ module.exports =
 	      }
 	      return true;
 	    }
-	
+
 	    function getPrime(min) {
 	      var index, num, candidate;
 	      for (index = 0; index < primes.length; ++index) {
@@ -20478,7 +20493,7 @@ module.exports =
 	      }
 	      return min;
 	    }
-	
+
 	    function stringHashFn(str) {
 	      var hash = 757602046;
 	      if (!str.length) { return hash; }
@@ -20489,7 +20504,7 @@ module.exports =
 	      }
 	      return hash;
 	    }
-	
+
 	    function numberHashFn(key) {
 	      var c2 = 0x27d4eb2d;
 	      key = (key ^ 61) ^ (key >>> 16);
@@ -20499,13 +20514,13 @@ module.exports =
 	      key = key ^ (key >>> 15);
 	      return key;
 	    }
-	
+
 	    var getHashCode = (function () {
 	      var uniqueIdCounter = 0;
-	
+
 	      return function (obj) {
 	        if (obj == null) { throw new Error(noSuchkey); }
-	
+
 	        // Check for built-ins before tacking on our own for any object
 	        if (typeof obj === 'string') { return stringHashFn(obj); }
 	        if (typeof obj === 'number') { return numberHashFn(obj); }
@@ -20519,29 +20534,29 @@ module.exports =
 	          if (typeof valueOf === 'string') { return stringHashFn(valueOf); }
 	        }
 	        if (obj.hashCode) { return obj.hashCode(); }
-	
+
 	        var id = 17 * uniqueIdCounter++;
 	        obj.hashCode = function () { return id; };
 	        return id;
 	      };
 	    }());
-	
+
 	    function newEntry() {
 	      return { key: null, value: null, next: 0, hashCode: 0 };
 	    }
-	
+
 	    function Dictionary(capacity, comparer) {
 	      if (capacity < 0) { throw new ArgumentOutOfRangeError(); }
 	      if (capacity > 0) { this._initialize(capacity); }
-	
+
 	      this.comparer = comparer || defaultComparer;
 	      this.freeCount = 0;
 	      this.size = 0;
 	      this.freeList = -1;
 	    }
-	
+
 	    var dictionaryProto = Dictionary.prototype;
-	
+
 	    dictionaryProto._initialize = function (capacity) {
 	      var prime = getPrime(capacity), i;
 	      this.buckets = new Array(prime);
@@ -20552,11 +20567,11 @@ module.exports =
 	      }
 	      this.freeList = -1;
 	    };
-	
+
 	    dictionaryProto.add = function (key, value) {
 	      this._insert(key, value, true);
 	    };
-	
+
 	    dictionaryProto._insert = function (key, value, add) {
 	      if (!this.buckets) { this._initialize(0); }
 	      var index3,
@@ -20587,7 +20602,7 @@ module.exports =
 	      this.entries[index3].value = value;
 	      this.buckets[index1] = index3;
 	    };
-	
+
 	    dictionaryProto._resize = function () {
 	      var prime = getPrime(this.size * 2),
 	        numArray = new Array(prime);
@@ -20603,7 +20618,7 @@ module.exports =
 	      this.buckets = numArray;
 	      this.entries = entryArray;
 	    };
-	
+
 	    dictionaryProto.remove = function (key) {
 	      if (this.buckets) {
 	        var num = getHashCode(key) & 2147483647,
@@ -20630,7 +20645,7 @@ module.exports =
 	      }
 	      return false;
 	    };
-	
+
 	    dictionaryProto.clear = function () {
 	      var index, len;
 	      if (this.size <= 0) { return; }
@@ -20643,7 +20658,7 @@ module.exports =
 	      this.freeList = -1;
 	      this.size = 0;
 	    };
-	
+
 	    dictionaryProto._findEntry = function (key) {
 	      if (this.buckets) {
 	        var num = getHashCode(key) & 2147483647;
@@ -20655,18 +20670,18 @@ module.exports =
 	      }
 	      return -1;
 	    };
-	
+
 	    dictionaryProto.count = function () {
 	      return this.size - this.freeCount;
 	    };
-	
+
 	    dictionaryProto.tryGetValue = function (key) {
 	      var entry = this._findEntry(key);
 	      return entry >= 0 ?
 	        this.entries[entry].value :
 	        undefined;
 	    };
-	
+
 	    dictionaryProto.getValues = function () {
 	      var index = 0, results = [];
 	      if (this.entries) {
@@ -20678,24 +20693,24 @@ module.exports =
 	      }
 	      return results;
 	    };
-	
+
 	    dictionaryProto.get = function (key) {
 	      var entry = this._findEntry(key);
 	      if (entry >= 0) { return this.entries[entry].value; }
 	      throw new Error(noSuchkey);
 	    };
-	
+
 	    dictionaryProto.set = function (key, value) {
 	      this._insert(key, value, false);
 	    };
-	
+
 	    dictionaryProto.containskey = function (key) {
 	      return this._findEntry(key) >= 0;
 	    };
-	
+
 	    return Dictionary;
 	  }());
-	
+
 	  /**
 	   *  Correlates the elements of two sequences based on overlapping durations.
 	   *
@@ -20712,20 +20727,20 @@ module.exports =
 	      var leftDone = false, rightDone = false;
 	      var leftId = 0, rightId = 0;
 	      var leftMap = new Dictionary(), rightMap = new Dictionary();
-	
+
 	      group.add(left.subscribe(
 	        function (value) {
 	          var id = leftId++;
 	          var md = new SingleAssignmentDisposable();
-	
+
 	          leftMap.add(id, value);
 	          group.add(md);
-	
+
 	          var expire = function () {
 	            leftMap.remove(id) && leftMap.count() === 0 && leftDone && observer.onCompleted();
 	            group.remove(md);
 	          };
-	
+
 	          var duration;
 	          try {
 	            duration = leftDurationSelector(value);
@@ -20733,9 +20748,9 @@ module.exports =
 	            observer.onError(e);
 	            return;
 	          }
-	
+
 	          md.setDisposable(duration.take(1).subscribe(noop, observer.onError.bind(observer), expire));
-	
+
 	          rightMap.getValues().forEach(function (v) {
 	            var result;
 	            try {
@@ -20744,7 +20759,7 @@ module.exports =
 	              observer.onError(exn);
 	              return;
 	            }
-	
+
 	            observer.onNext(result);
 	          });
 	        },
@@ -20754,20 +20769,20 @@ module.exports =
 	          (rightDone || leftMap.count() === 0) && observer.onCompleted();
 	        })
 	      );
-	
+
 	      group.add(right.subscribe(
 	        function (value) {
 	          var id = rightId++;
 	          var md = new SingleAssignmentDisposable();
-	
+
 	          rightMap.add(id, value);
 	          group.add(md);
-	
+
 	          var expire = function () {
 	            rightMap.remove(id) && rightMap.count() === 0 && rightDone && observer.onCompleted();
 	            group.remove(md);
 	          };
-	
+
 	          var duration;
 	          try {
 	            duration = rightDurationSelector(value);
@@ -20775,9 +20790,9 @@ module.exports =
 	            observer.onError(e);
 	            return;
 	          }
-	
+
 	          md.setDisposable(duration.take(1).subscribe(noop, observer.onError.bind(observer), expire));
-	
+
 	          leftMap.getValues().forEach(function (v) {
 	            var result;
 	            try {
@@ -20786,7 +20801,7 @@ module.exports =
 	              observer.onError(exn);
 	              return;
 	            }
-	
+
 	            observer.onNext(result);
 	          });
 	        },
@@ -20799,7 +20814,7 @@ module.exports =
 	      return group;
 	    }, left);
 	  };
-	
+
 	  /**
 	   *  Correlates the elements of two sequences based on overlapping durations, and groups the results.
 	   *
@@ -20816,15 +20831,15 @@ module.exports =
 	      var r = new RefCountDisposable(group);
 	      var leftMap = new Dictionary(), rightMap = new Dictionary();
 	      var leftId = 0, rightId = 0;
-	
+
 	      function handleError(e) { return function (v) { v.onError(e); }; };
-	
+
 	      group.add(left.subscribe(
 	        function (value) {
 	          var s = new Subject();
 	          var id = leftId++;
 	          leftMap.add(id, s);
-	
+
 	          var result;
 	          try {
 	            result = resultSelector(value, addRef(s, r));
@@ -20834,17 +20849,17 @@ module.exports =
 	            return;
 	          }
 	          observer.onNext(result);
-	
+
 	          rightMap.getValues().forEach(function (v) { s.onNext(v); });
-	
+
 	          var md = new SingleAssignmentDisposable();
 	          group.add(md);
-	
+
 	          var expire = function () {
 	            leftMap.remove(id) && s.onCompleted();
 	            group.remove(md);
 	          };
-	
+
 	          var duration;
 	          try {
 	            duration = leftDurationSelector(value);
@@ -20853,7 +20868,7 @@ module.exports =
 	            observer.onError(e);
 	            return;
 	          }
-	
+
 	          md.setDisposable(duration.take(1).subscribe(
 	            noop,
 	            function (e) {
@@ -20869,20 +20884,20 @@ module.exports =
 	        },
 	        observer.onCompleted.bind(observer))
 	      );
-	
+
 	      group.add(right.subscribe(
 	        function (value) {
 	          var id = rightId++;
 	          rightMap.add(id, value);
-	
+
 	          var md = new SingleAssignmentDisposable();
 	          group.add(md);
-	
+
 	          var expire = function () {
 	            rightMap.remove(id);
 	            group.remove(md);
 	          };
-	
+
 	          var duration;
 	          try {
 	            duration = rightDurationSelector(value);
@@ -20899,7 +20914,7 @@ module.exports =
 	            },
 	            expire)
 	          );
-	
+
 	          leftMap.getValues().forEach(function (v) { v.onNext(value); });
 	        },
 	        function (e) {
@@ -20907,11 +20922,11 @@ module.exports =
 	          observer.onError(e);
 	        })
 	      );
-	
+
 	      return r;
 	    }, left);
 	  };
-	
+
 	    /**
 	     *  Projects each element of an observable sequence into zero or more buffers.
 	     *
@@ -20922,7 +20937,7 @@ module.exports =
 	    observableProto.buffer = function (bufferOpeningsOrClosingSelector, bufferClosingSelector) {
 	        return this.window.apply(this, arguments).selectMany(function (x) { return x.toArray(); });
 	    };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into zero or more windows.
 	   *
@@ -20938,22 +20953,22 @@ module.exports =
 	      observableWindowWithClosingSelector.call(this, windowOpeningsOrClosingSelector) :
 	      observableWindowWithOpenings.call(this, windowOpeningsOrClosingSelector, windowClosingSelector);
 	  };
-	
+
 	  function observableWindowWithOpenings(windowOpenings, windowClosingSelector) {
 	    return windowOpenings.groupJoin(this, windowClosingSelector, observableEmpty, function (_, win) {
 	      return win;
 	    });
 	  }
-	
+
 	  function observableWindowWithBoundaries(windowBoundaries) {
 	    var source = this;
 	    return new AnonymousObservable(function (observer) {
 	      var win = new Subject(),
 	        d = new CompositeDisposable(),
 	        r = new RefCountDisposable(d);
-	
+
 	      observer.onNext(addRef(win, r));
-	
+
 	      d.add(source.subscribe(function (x) {
 	        win.onNext(x);
 	      }, function (err) {
@@ -20963,9 +20978,9 @@ module.exports =
 	        win.onCompleted();
 	        observer.onCompleted();
 	      }));
-	
+
 	      isPromise(windowBoundaries) && (windowBoundaries = observableFromPromise(windowBoundaries));
-	
+
 	      d.add(windowBoundaries.subscribe(function (w) {
 	        win.onCompleted();
 	        win = new Subject();
@@ -20977,11 +20992,11 @@ module.exports =
 	        win.onCompleted();
 	        observer.onCompleted();
 	      }));
-	
+
 	      return r;
 	    }, source);
 	  }
-	
+
 	  function observableWindowWithClosingSelector(windowClosingSelector) {
 	    var source = this;
 	    return new AnonymousObservable(function (observer) {
@@ -20999,7 +21014,7 @@ module.exports =
 	          win.onCompleted();
 	          observer.onCompleted();
 	      }));
-	
+
 	      function createWindowClose () {
 	        var windowClose;
 	        try {
@@ -21008,9 +21023,9 @@ module.exports =
 	          observer.onError(e);
 	          return;
 	        }
-	
+
 	        isPromise(windowClose) && (windowClose = observableFromPromise(windowClose));
-	
+
 	        var m1 = new SingleAssignmentDisposable();
 	        m.setDisposable(m1);
 	        m1.setDisposable(windowClose.take(1).subscribe(noop, function (err) {
@@ -21023,12 +21038,12 @@ module.exports =
 	          createWindowClose();
 	        }));
 	      }
-	
+
 	      createWindowClose();
 	      return r;
 	    }, source);
 	  }
-	
+
 	  /**
 	   * Returns a new observable that triggers on the second and subsequent triggerings of the input observable.
 	   * The Nth triggering of the input observable passes the arguments from the N-1th and Nth triggering as a pair.
@@ -21052,7 +21067,7 @@ module.exports =
 	        observer.onCompleted.bind(observer));
 	    }, source);
 	  };
-	
+
 	  /**
 	   * Returns two observables which partition the observations of the source by the given function.
 	   * The first will trigger observations for those values for which the predicate returns true.
@@ -21072,7 +21087,7 @@ module.exports =
 	      this.filter(function (x, i, o) { return !predicate.call(thisArg, x, i, o); })
 	    ];
 	  };
-	
+
 	  var WhileEnumerable = (function(__super__) {
 	    inherits(WhileEnumerable, __super__);
 	    function WhileEnumerable(c, s) {
@@ -21095,7 +21110,7 @@ module.exports =
 	  function enumerableWhile(condition, source) {
 	    return new WhileEnumerable(condition, source);
 	  }  
-	
+
 	   /**
 	   *  Returns an observable sequence that is the result of invoking the selector on the source sequence, without sharing subscriptions.
 	   *  This operator allows for a fluent style of writing queries that use the same sequence multiple times.
@@ -21106,7 +21121,7 @@ module.exports =
 	  observableProto.letBind = observableProto['let'] = function (func) {
 	    return func(this);
 	  };
-	
+
 	   /**
 	   *  Determines whether an observable collection contains values. There is an alias for this method called 'ifThen' for browsers <IE9
 	   *
@@ -21122,16 +21137,16 @@ module.exports =
 	  Observable['if'] = Observable.ifThen = function (condition, thenSource, elseSourceOrScheduler) {
 	    return observableDefer(function () {
 	      elseSourceOrScheduler || (elseSourceOrScheduler = observableEmpty());
-	
+
 	      isPromise(thenSource) && (thenSource = observableFromPromise(thenSource));
 	      isPromise(elseSourceOrScheduler) && (elseSourceOrScheduler = observableFromPromise(elseSourceOrScheduler));
-	
+
 	      // Assume a scheduler for empty only
 	      typeof elseSourceOrScheduler.now === 'function' && (elseSourceOrScheduler = observableEmpty(elseSourceOrScheduler));
 	      return condition() ? thenSource : elseSourceOrScheduler;
 	    });
 	  };
-	
+
 	   /**
 	   *  Concatenates the observable sequences obtained by running the specified result selector for each element in source.
 	   * There is an alias for this method called 'forIn' for browsers <IE9
@@ -21142,7 +21157,7 @@ module.exports =
 	  Observable['for'] = Observable.forIn = function (sources, resultSelector, thisArg) {
 	    return enumerableOf(sources, resultSelector, thisArg).concat();
 	  };
-	
+
 	   /**
 	   *  Repeats source as long as condition holds emulating a while loop.
 	   * There is an alias for this method called 'whileDo' for browsers <IE9
@@ -21155,7 +21170,7 @@ module.exports =
 	    isPromise(source) && (source = observableFromPromise(source));
 	    return enumerableWhile(condition, source).concat();
 	  };
-	
+
 	   /**
 	   *  Repeats source as long as condition holds emulating a do while loop.
 	   *
@@ -21166,7 +21181,7 @@ module.exports =
 	  observableProto.doWhile = function (condition) {
 	    return observableConcat([this, observableWhileDo(condition, this)]);
 	  };
-	
+
 	   /**
 	   *  Uses selector to determine which source in sources to use.
 	   *  There is an alias 'switchCase' for browsers <IE9.
@@ -21186,16 +21201,16 @@ module.exports =
 	    return observableDefer(function () {
 	      isPromise(defaultSourceOrScheduler) && (defaultSourceOrScheduler = observableFromPromise(defaultSourceOrScheduler));
 	      defaultSourceOrScheduler || (defaultSourceOrScheduler = observableEmpty());
-	
+
 	      typeof defaultSourceOrScheduler.now === 'function' && (defaultSourceOrScheduler = observableEmpty(defaultSourceOrScheduler));
-	
+
 	      var result = sources[selector()];
 	      isPromise(result) && (result = observableFromPromise(result));
-	
+
 	      return result || defaultSourceOrScheduler;
 	    });
 	  };
-	
+
 	   /**
 	   *  Expands an observable sequence by recursively invoking selector.
 	   *
@@ -21212,7 +21227,7 @@ module.exports =
 	        d = new CompositeDisposable(m),
 	        activeCount = 0,
 	        isAcquired = false;
-	
+
 	      var ensureActive = function () {
 	        var isOwner = false;
 	        if (q.length > 0) {
@@ -21252,14 +21267,14 @@ module.exports =
 	          }));
 	        }
 	      };
-	
+
 	      q.push(source);
 	      activeCount++;
 	      ensureActive();
 	      return d;
 	    }, this);
 	  };
-	
+
 	   /**
 	   *  Runs all observable sequences in parallel and collect their last elements.
 	   *
@@ -21286,7 +21301,7 @@ module.exports =
 	        hasResults = new Array(count),
 	        hasCompleted = new Array(count),
 	        results = new Array(count);
-	
+
 	      for (var idx = 0; idx < count; idx++) {
 	        (function (i) {
 	          var source = allSources[i];
@@ -21321,11 +21336,11 @@ module.exports =
 	            }));
 	        })(idx);
 	      }
-	
+
 	      return group;
 	    });
 	  };
-	
+
 	   /**
 	   *  Runs two observable sequences in parallel and combines their last elemenets.
 	   *
@@ -21340,9 +21355,9 @@ module.exports =
 	        hasLeft = false, hasRight = false,
 	        lastLeft, lastRight,
 	        leftSubscription = new SingleAssignmentDisposable(), rightSubscription = new SingleAssignmentDisposable();
-	
+
 	      isPromise(second) && (second = observableFromPromise(second));
-	
+
 	      leftSubscription.setDisposable(
 	          first.subscribe(function (left) {
 	            hasLeft = true;
@@ -21371,7 +21386,7 @@ module.exports =
 	            }
 	          })
 	      );
-	
+
 	      rightSubscription.setDisposable(
 	        second.subscribe(function (right) {
 	          hasRight = true;
@@ -21400,11 +21415,11 @@ module.exports =
 	          }
 	        })
 	      );
-	
+
 	      return new CompositeDisposable(leftSubscription, rightSubscription);
 	    }, first);
 	  };
-	
+
 	  /**
 	   * Comonadic bind operator.
 	   * @param {Function} selector A transform function to apply to each element.
@@ -21416,14 +21431,14 @@ module.exports =
 	    var source = this;
 	    return observableDefer(function () {
 	      var chain;
-	
+
 	      return source
 	        .map(function (x) {
 	          var curr = new ChainObservable(x);
-	
+
 	          chain && chain.onNext(x);
 	          chain = curr;
-	
+
 	          return curr;
 	        })
 	        .tap(
@@ -21435,27 +21450,27 @@ module.exports =
 	        .map(selector);
 	    }, source);
 	  };
-	
+
 	  var ChainObservable = (function (__super__) {
-	
+
 	    function subscribe (observer) {
 	      var self = this, g = new CompositeDisposable();
 	      g.add(currentThreadScheduler.schedule(function () {
 	        observer.onNext(self.head);
 	        g.add(self.tail.mergeAll().subscribe(observer));
 	      }));
-	
+
 	      return g;
 	    }
-	
+
 	    inherits(ChainObservable, __super__);
-	
+
 	    function ChainObservable(head) {
 	      __super__.call(this, subscribe);
 	      this.head = head;
 	      this.tail = new AsyncSubject();
 	    }
-	
+
 	    addProperties(ChainObservable.prototype, Observer, {
 	      onCompleted: function () {
 	        this.onNext(Observable.empty());
@@ -21468,39 +21483,39 @@ module.exports =
 	        this.tail.onCompleted();
 	      }
 	    });
-	
+
 	    return ChainObservable;
-	
+
 	  }(Observable));
-	
+
 	  /** @private */
 	  var Map = root.Map || (function () {
-	
+
 	    function Map() {
 	      this._keys = [];
 	      this._values = [];
 	    }
-	
+
 	    Map.prototype.get = function (key) {
 	      var i = this._keys.indexOf(key);
 	      return i !== -1 ? this._values[i] : undefined;
 	    };
-	
+
 	    Map.prototype.set = function (key, value) {
 	      var i = this._keys.indexOf(key);
 	      i !== -1 && (this._values[i] = value);
 	      this._values[this._keys.push(key) - 1] = value;
 	    };
-	
+
 	    Map.prototype.forEach = function (callback, thisArg) {
 	      for (var i = 0, len = this._keys.length; i < len; i++) {
 	        callback.call(thisArg, this._values[i], this._keys[i]);
 	      }
 	    };
-	
+
 	    return Map;
 	  }());
-	
+
 	  /**
 	   * @constructor
 	   * Represents a join pattern over observable sequences.
@@ -21508,7 +21523,7 @@ module.exports =
 	  function Pattern(patterns) {
 	    this.patterns = patterns;
 	  }
-	
+
 	  /**
 	   *  Creates a pattern that matches the current plan matches and when the specified observable sequences has an available value.
 	   *  @param other Observable sequence to match in addition to the current pattern.
@@ -21517,7 +21532,7 @@ module.exports =
 	  Pattern.prototype.and = function (other) {
 	    return new Pattern(this.patterns.concat(other));
 	  };
-	
+
 	  /**
 	   *  Matches when all observable sequences in the pattern (specified using a chain of and operators) have an available value and projects the values.
 	   *  @param {Function} selector Selector that will be invoked with available values from the source sequences, in the same order of the sequences in the pattern.
@@ -21526,12 +21541,12 @@ module.exports =
 	  Pattern.prototype.thenDo = function (selector) {
 	    return new Plan(this, selector);
 	  };
-	
+
 	  function Plan(expression, selector) {
 	      this.expression = expression;
 	      this.selector = selector;
 	  }
-	
+
 	  Plan.prototype.activate = function (externalSubscriptions, observer, deactivate) {
 	    var self = this;
 	    var joinObservers = [];
@@ -21558,7 +21573,7 @@ module.exports =
 	    }
 	    return activePlan;
 	  };
-	
+
 	  function planCreateObserver(externalSubscriptions, observable, onError) {
 	    var entry = externalSubscriptions.get(observable);
 	    if (!entry) {
@@ -21568,7 +21583,7 @@ module.exports =
 	    }
 	    return entry;
 	  }
-	
+
 	  function ActivePlan(joinObserverArray, onNext, onCompleted) {
 	    this.joinObserverArray = joinObserverArray;
 	    this.onNext = onNext;
@@ -21579,11 +21594,11 @@ module.exports =
 	      this.joinObservers.set(joinObserver, joinObserver);
 	    }
 	  }
-	
+
 	  ActivePlan.prototype.dequeue = function () {
 	    this.joinObservers.forEach(function (v) { v.queue.shift(); });
 	  };
-	
+
 	  ActivePlan.prototype.match = function () {
 	    var i, len, hasValues = true;
 	    for (i = 0, len = this.joinObserverArray.length; i < len; i++) {
@@ -21611,10 +21626,10 @@ module.exports =
 	      }
 	    }
 	  };
-	
+
 	  var JoinObserver = (function (__super__) {
 	    inherits(JoinObserver, __super__);
-	
+
 	    function JoinObserver(source, onError) {
 	      __super__.call(this);
 	      this.source = source;
@@ -21624,9 +21639,9 @@ module.exports =
 	      this.subscription = new SingleAssignmentDisposable();
 	      this.isDisposed = false;
 	    }
-	
+
 	    var JoinObserverPrototype = JoinObserver.prototype;
-	
+
 	    JoinObserverPrototype.next = function (notification) {
 	      if (!this.isDisposed) {
 	        if (notification.kind === 'E') {
@@ -21639,23 +21654,23 @@ module.exports =
 	        }
 	      }
 	    };
-	
+
 	    JoinObserverPrototype.error = noop;
 	    JoinObserverPrototype.completed = noop;
-	
+
 	    JoinObserverPrototype.addActivePlan = function (activePlan) {
 	      this.activePlans.push(activePlan);
 	    };
-	
+
 	    JoinObserverPrototype.subscribe = function () {
 	      this.subscription.setDisposable(this.source.materialize().subscribe(this));
 	    };
-	
+
 	    JoinObserverPrototype.removeActivePlan = function (activePlan) {
 	      this.activePlans.splice(this.activePlans.indexOf(activePlan), 1);
 	      this.activePlans.length === 0 && this.dispose();
 	    };
-	
+
 	    JoinObserverPrototype.dispose = function () {
 	      __super__.prototype.dispose.call(this);
 	      if (!this.isDisposed) {
@@ -21663,10 +21678,10 @@ module.exports =
 	        this.subscription.dispose();
 	      }
 	    };
-	
+
 	    return JoinObserver;
 	  } (AbstractObserver));
-	
+
 	  /**
 	   *  Creates a pattern that matches when both observable sequences have an available value.
 	   *
@@ -21676,7 +21691,7 @@ module.exports =
 	  observableProto.and = function (right) {
 	    return new Pattern([this, right]);
 	  };
-	
+
 	  /**
 	   *  Matches when the observable sequence has an available value and projects the value.
 	   *
@@ -21686,7 +21701,7 @@ module.exports =
 	  observableProto.thenDo = function (selector) {
 	    return new Pattern([this]).thenDo(selector);
 	  };
-	
+
 	  /**
 	   *  Joins together the results from several patterns.
 	   *
@@ -21728,11 +21743,11 @@ module.exports =
 	        joinObserver.subscribe();
 	        group.add(joinObserver);
 	      });
-	
+
 	      return group;
 	    });
 	  };
-	
+
 	  function observableTimerDate(dueTime, scheduler) {
 	    return new AnonymousObservable(function (observer) {
 	      return scheduler.scheduleWithAbsolute(dueTime, function () {
@@ -21741,7 +21756,7 @@ module.exports =
 	      });
 	    });
 	  }
-	
+
 	  function observableTimerDateAndPeriod(dueTime, period, scheduler) {
 	    return new AnonymousObservable(function (observer) {
 	      var d = dueTime, p = normalizeTime(period);
@@ -21756,7 +21771,7 @@ module.exports =
 	      });
 	    });
 	  }
-	
+
 	  function observableTimerTimeSpan(dueTime, scheduler) {
 	    return new AnonymousObservable(function (observer) {
 	      return scheduler.scheduleWithRelative(normalizeTime(dueTime), function () {
@@ -21765,7 +21780,7 @@ module.exports =
 	      });
 	    });
 	  }
-	
+
 	  function observableTimerTimeSpanAndPeriod(dueTime, period, scheduler) {
 	    return dueTime === period ?
 	      new AnonymousObservable(function (observer) {
@@ -21778,7 +21793,7 @@ module.exports =
 	        return observableTimerDateAndPeriod(scheduler.now() + dueTime, period, scheduler);
 	      });
 	  }
-	
+
 	  /**
 	   *  Returns an observable sequence that produces a value after each period.
 	   *
@@ -21793,7 +21808,7 @@ module.exports =
 	  var observableinterval = Observable.interval = function (period, scheduler) {
 	    return observableTimerTimeSpanAndPeriod(period, period, isScheduler(scheduler) ? scheduler : timeoutScheduler);
 	  };
-	
+
 	  /**
 	   *  Returns an observable sequence that produces a value after dueTime has elapsed and then after each period.
 	   * @param {Number} dueTime Absolute (specified as a Date object) or relative time (specified as an integer denoting milliseconds) at which to produce the first value.
@@ -21820,7 +21835,7 @@ module.exports =
 	      observableTimerTimeSpan(dueTime, scheduler) :
 	      observableTimerTimeSpanAndPeriod(dueTime, period, scheduler);
 	  };
-	
+
 	  function observableDelayTimeSpan(source, dueTime, scheduler) {
 	    return new AnonymousObservable(function (observer) {
 	      var active = false,
@@ -21884,13 +21899,13 @@ module.exports =
 	      return new CompositeDisposable(subscription, cancelable);
 	    }, source);
 	  }
-	
+
 	  function observableDelayDate(source, dueTime, scheduler) {
 	    return observableDefer(function () {
 	      return observableDelayTimeSpan(source, dueTime - scheduler.now(), scheduler);
 	    });
 	  }
-	
+
 	  /**
 	   *  Time shifts the observable sequence by dueTime. The relative time intervals between the values are preserved.
 	   *
@@ -21911,7 +21926,7 @@ module.exports =
 	      observableDelayDate(this, dueTime.getTime(), scheduler) :
 	      observableDelayTimeSpan(this, dueTime, scheduler);
 	  };
-	
+
 	  /**
 	   *  Ignores values from an observable sequence which are followed by another value before dueTime.
 	   * @param {Number} dueTime Duration of the debounce period for each value (specified as an integer denoting milliseconds).
@@ -21952,7 +21967,7 @@ module.exports =
 	      return new CompositeDisposable(subscription, cancelable);
 	    }, this);
 	  };
-	
+
 	  /**
 	   * @deprecated use #debounce or #throttleWithTimeout instead.
 	   */
@@ -21960,7 +21975,7 @@ module.exports =
 	    //deprecate('throttle', 'debounce or throttleWithTimeout');
 	    return this.debounce(dueTime, scheduler);
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into zero or more windows which are produced based on timing information.
 	   * @param {Number} timeSpan Length of each window (specified as an integer denoting milliseconds).
@@ -21988,7 +22003,7 @@ module.exports =
 	        totalTime = 0;
 	        groupDisposable = new CompositeDisposable(timerD),
 	        refCountDisposable = new RefCountDisposable(groupDisposable);
-	
+
 	       function createTimer () {
 	        var m = new SingleAssignmentDisposable(),
 	          isSpan = false,
@@ -22040,7 +22055,7 @@ module.exports =
 	      return refCountDisposable;
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Projects each element of an observable sequence into a window that is completed when either it's full or a given amount of time has elapsed.
 	   * @param {Number} timeSpan Maximum time length of a window.
@@ -22058,7 +22073,7 @@ module.exports =
 	          n = 0,
 	          windowId = 0,
 	          s = new Subject();
-	
+
 	      function createTimer(id) {
 	        var m = new SingleAssignmentDisposable();
 	        timerD.setDisposable(m);
@@ -22072,10 +22087,10 @@ module.exports =
 	          createTimer(newId);
 	        }));
 	      }
-	
+
 	      observer.onNext(addRef(s, refCountDisposable));
 	      createTimer(0);
-	
+
 	      groupDisposable.add(source.subscribe(
 	        function (x) {
 	          var newId = 0, newWindow = false;
@@ -22101,7 +22116,7 @@ module.exports =
 	      return refCountDisposable;
 	    }, source);
 	  };
-	
+
 	    /**
 	     *  Projects each element of an observable sequence into zero or more buffers which are produced based on timing information.
 	     *
@@ -22117,7 +22132,7 @@ module.exports =
 	    observableProto.bufferWithTime = function (timeSpan, timeShiftOrScheduler, scheduler) {
 	        return this.windowWithTime.apply(this, arguments).selectMany(function (x) { return x.toArray(); });
 	    };
-	
+
 	    /**
 	     *  Projects each element of an observable sequence into a buffer that is completed when either it's full or a given amount of time has elapsed.
 	     *
@@ -22135,7 +22150,7 @@ module.exports =
 	            return x.toArray();
 	        });
 	    };
-	
+
 	  /**
 	   *  Records the time interval between consecutive values in an observable sequence.
 	   *
@@ -22158,7 +22173,7 @@ module.exports =
 	      });
 	    });
 	  };
-	
+
 	  /**
 	   *  Records the timestamp for each value in an observable sequence.
 	   *
@@ -22175,11 +22190,11 @@ module.exports =
 	      return { value: x, timestamp: scheduler.now() };
 	    });
 	  };
-	
+
 	  function sampleObservable(source, sampler) {
 	    return new AnonymousObservable(function (o) {
 	      var atEnd = false, value, hasValue = false;
-	
+
 	      function sampleSubscribe() {
 	        if (hasValue) {
 	          hasValue = false;
@@ -22187,7 +22202,7 @@ module.exports =
 	        }
 	        atEnd && o.onCompleted();
 	      }
-	
+
 	      var sourceSubscription = new SingleAssignmentDisposable();
 	      sourceSubscription.setDisposable(source.subscribe(
 	        function (newValue) {
@@ -22200,14 +22215,14 @@ module.exports =
 	          sourceSubscription.dispose(); 
 	        }
 	      ));
-	
+
 	      return new CompositeDisposable(
 	        sourceSubscription,
 	        sampler.subscribe(sampleSubscribe, function (e) { o.onError(e); }, sampleSubscribe)
 	      );
 	    }, source);
 	  }
-	
+
 	  /**
 	   *  Samples the observable sequence at each interval.
 	   *
@@ -22226,7 +22241,7 @@ module.exports =
 	      sampleObservable(this, observableinterval(intervalOrSampler, scheduler)) :
 	      sampleObservable(this, intervalOrSampler);
 	  };
-	
+
 	  /**
 	   *  Returns the source observable sequence or the other observable sequence if dueTime elapses.
 	   * @param {Number} dueTime Absolute (specified as a Date object) or relative time (specified as an integer denoting milliseconds) when a timeout occurs.
@@ -22237,20 +22252,20 @@ module.exports =
 	  observableProto.timeout = function (dueTime, other, scheduler) {
 	    (other == null || typeof other === 'string') && (other = observableThrow(new Error(other || 'Timeout')));
 	    isScheduler(scheduler) || (scheduler = timeoutScheduler);
-	
+
 	    var source = this, schedulerMethod = dueTime instanceof Date ?
 	      'scheduleWithAbsolute' :
 	      'scheduleWithRelative';
-	
+
 	    return new AnonymousObservable(function (observer) {
 	      var id = 0,
 	        original = new SingleAssignmentDisposable(),
 	        subscription = new SerialDisposable(),
 	        switched = false,
 	        timer = new SerialDisposable();
-	
+
 	      subscription.setDisposable(original);
-	
+
 	      function createTimer() {
 	        var myId = id;
 	        timer.setDisposable(scheduler[schedulerMethod](dueTime, function () {
@@ -22260,9 +22275,9 @@ module.exports =
 	          }
 	        }));
 	      }
-	
+
 	      createTimer();
-	
+
 	      original.setDisposable(source.subscribe(function (x) {
 	        if (!switched) {
 	          id++;
@@ -22283,7 +22298,7 @@ module.exports =
 	      return new CompositeDisposable(subscription, timer);
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Generates an observable sequence by iterating a state from an initial state until the condition fails.
 	   *
@@ -22310,7 +22325,7 @@ module.exports =
 	        hasResult = false;
 	      return scheduler.scheduleRecursiveWithAbsoluteAndState(initialState, scheduler.now(), function (state, self) {
 	        hasResult && observer.onNext(state);
-	
+
 	        try {
 	          if (first) {
 	            first = false;
@@ -22334,7 +22349,7 @@ module.exports =
 	      });
 	    });
 	  };
-	
+
 	  /**
 	   *  Generates an observable sequence by iterating a state from an initial state until the condition fails.
 	   *
@@ -22361,7 +22376,7 @@ module.exports =
 	        hasResult = false;
 	      return scheduler.scheduleRecursiveWithRelativeAndState(initialState, 0, function (state, self) {
 	        hasResult && observer.onNext(state);
-	
+
 	        try {
 	          if (first) {
 	            first = false;
@@ -22385,7 +22400,7 @@ module.exports =
 	      });
 	    });
 	  };
-	
+
 	  /**
 	   *  Time shifts the observable sequence by delaying the subscription with the specified relative time duration, using the specified scheduler to run timers.
 	   *
@@ -22403,15 +22418,15 @@ module.exports =
 	    isScheduler(scheduler) || (scheduler = timeoutScheduler);
 	    return new AnonymousObservable(function (o) {
 	      var d = new SerialDisposable();
-	
+
 	      d.setDisposable(scheduler[scheduleMethod](dueTime, function() {
 	        d.setDisposable(source.subscribe(o));
 	      }));
-	
+
 	      return d;
 	    }, this);
 	  };
-	
+
 	  /**
 	   *  Time shifts the observable sequence based on a subscription delay and a delay selector function for each element.
 	   *
@@ -22433,7 +22448,7 @@ module.exports =
 	    }
 	    return new AnonymousObservable(function (observer) {
 	      var delays = new CompositeDisposable(), atEnd = false, subscription = new SerialDisposable();
-	
+
 	      function start() {
 	        subscription.setDisposable(source.subscribe(
 	          function (x) {
@@ -22463,21 +22478,21 @@ module.exports =
 	          }
 	        ))
 	      }
-	
+
 	      function done () {
 	        atEnd && delays.length === 0 && observer.onCompleted();
 	      }
-	
+
 	      if (!subDelay) {
 	        start();
 	      } else {
 	        subscription.setDisposable(subDelay.subscribe(start, function (e) { observer.onError(e); }, start));
 	      }
-	
+
 	      return new CompositeDisposable(subscription, delays);
 	    }, this);
 	  };
-	
+
 	    /**
 	     *  Returns the source observable sequence, switching to the other observable sequence if a timeout is signaled.
 	     * @param {Observable} [firstTimeout]  Observable sequence that represents the timeout for the first element. If not provided, this defaults to Observable.never().
@@ -22494,18 +22509,18 @@ module.exports =
 	      var source = this;
 	      return new AnonymousObservable(function (observer) {
 	        var subscription = new SerialDisposable(), timer = new SerialDisposable(), original = new SingleAssignmentDisposable();
-	
+
 	        subscription.setDisposable(original);
-	
+
 	        var id = 0, switched = false;
-	
+
 	        function setTimer(timeout) {
 	          var myId = id;
-	
+
 	          function timerWins () {
 	            return id === myId;
 	          }
-	
+
 	          var d = new SingleAssignmentDisposable();
 	          timer.setDisposable(d);
 	          d.setDisposable(timeout.subscribe(function () {
@@ -22517,15 +22532,15 @@ module.exports =
 	            timerWins() && subscription.setDisposable(other.subscribe(observer));
 	          }));
 	        };
-	
+
 	        setTimer(firstTimeout);
-	
+
 	        function observerWins() {
 	          var res = !switched;
 	          if (res) { id++; }
 	          return res;
 	        }
-	
+
 	        original.setDisposable(source.subscribe(function (x) {
 	          if (observerWins()) {
 	            observer.onNext(x);
@@ -22546,7 +22561,7 @@ module.exports =
 	        return new CompositeDisposable(subscription, timer);
 	      }, source);
 	    };
-	
+
 	  /**
 	   * Ignores values from an observable sequence which are followed by another value within a computed throttle duration.
 	   * @param {Function} durationSelector Selector function to retrieve a sequence indicating the throttle duration for each given element.
@@ -22564,9 +22579,9 @@ module.exports =
 	          observer.onError(e);
 	          return;
 	        }
-	
+
 	        isPromise(throttle) && (throttle = observableFromPromise(throttle));
-	
+
 	        hasValue = true;
 	        value = x;
 	        id++;
@@ -22596,7 +22611,7 @@ module.exports =
 	      return new CompositeDisposable(subscription, cancelable);
 	    }, source);
 	  };
-	
+
 	  /**
 	   * @deprecated use #debounceWithSelector instead.
 	   */
@@ -22604,7 +22619,7 @@ module.exports =
 	    //deprecate('throttleWithSelector', 'debounceWithSelector');
 	    return this.debounceWithSelector(durationSelector);
 	  };
-	
+
 	  /**
 	   *  Skips elements for the specified duration from the end of the observable source sequence, using the specified scheduler to run timers.
 	   *
@@ -22639,7 +22654,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns elements within the specified duration from the end of the observable source sequence, using the specified schedulers to run timers and to drain the collected elements.
 	   * @description
@@ -22671,7 +22686,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Returns an array with the elements within the specified duration from the end of the observable source sequence, using the specified scheduler to run timers.
 	   * @description
@@ -22704,7 +22719,7 @@ module.exports =
 	      });
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Takes elements for the specified duration from the start of the observable source sequence, using the specified scheduler to run timers.
 	   *
@@ -22725,7 +22740,7 @@ module.exports =
 	      return new CompositeDisposable(scheduler.scheduleWithRelative(duration, function () { o.onCompleted(); }), source.subscribe(o));
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Skips elements for the specified duration from the start of the observable source sequence, using the specified scheduler to run timers.
 	   *
@@ -22752,7 +22767,7 @@ module.exports =
 	        source.subscribe(function (x) { open && observer.onNext(x); }, observer.onError.bind(observer), observer.onCompleted.bind(observer)));
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Skips elements from the observable source sequence until the specified start time, using the specified scheduler to run timers.
 	   *  Errors produced by the source sequence are always forwarded to the result sequence, even if the error occurs before the start time.
@@ -22771,7 +22786,7 @@ module.exports =
 	      'scheduleWithRelative';
 	    return new AnonymousObservable(function (o) {
 	      var open = false;
-	
+
 	      return new CompositeDisposable(
 	        scheduler[schedulerMethod](startTime, function () { open = true; }),
 	        source.subscribe(
@@ -22779,7 +22794,7 @@ module.exports =
 	          function (e) { o.onError(e); }, function () { o.onCompleted(); }));
 	    }, source);
 	  };
-	
+
 	  /**
 	   *  Takes elements for the specified duration until the specified end time, using the specified scheduler to run timers.
 	   * @param {Number | Date} endTime Time to stop taking elements from the source sequence. If this value is less than or equal to new Date(), the result stream will complete immediately.
@@ -22797,7 +22812,7 @@ module.exports =
 	        source.subscribe(o));
 	    }, source);
 	  };
-	
+
 	  /**
 	   * Returns an Observable that emits only the first item emitted by the source Observable during sequential time windows of a specified duration.
 	   * @param {Number} windowDuration time to wait before emitting another item after emitting the last item
@@ -22822,7 +22837,7 @@ module.exports =
 	      );
 	    }, source);
 	  };
-	
+
 	  /**
 	   * Executes a transducer to transform the observable sequence
 	   * @param {Transducer} transducer A transducer to execute
@@ -22830,7 +22845,7 @@ module.exports =
 	   */
 	  observableProto.transduce = function(transducer) {
 	    var source = this;
-	
+
 	    function transformForObserver(o) {
 	      return {
 	        '@@transducer/init': function() {
@@ -22844,7 +22859,7 @@ module.exports =
 	        }
 	      };
 	    }
-	
+
 	    return new AnonymousObservable(function(o) {
 	      var xform = transducer(transformForObserver(o));
 	      return source.subscribe(
@@ -22860,7 +22875,7 @@ module.exports =
 	      );
 	    }, source);
 	  };
-	
+
 	  /*
 	   * Performs a exclusive waiting for the first to finish before subscribing to another observable.
 	   * Observables that come in between subscriptions will be dropped on the floor.
@@ -22873,19 +22888,19 @@ module.exports =
 	        isStopped = false,
 	        m = new SingleAssignmentDisposable(),
 	        g = new CompositeDisposable();
-	
+
 	      g.add(m);
-	
+
 	      m.setDisposable(sources.subscribe(
 	        function (innerSource) {
 	          if (!hasCurrent) {
 	            hasCurrent = true;
-	
+
 	            isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
-	
+
 	            var innerSubscription = new SingleAssignmentDisposable();
 	            g.add(innerSubscription);
-	
+
 	            innerSubscription.setDisposable(innerSource.subscribe(
 	              observer.onNext.bind(observer),
 	              observer.onError.bind(observer),
@@ -22905,11 +22920,11 @@ module.exports =
 	            observer.onCompleted();
 	          }
 	        }));
-	
+
 	      return g;
 	    }, this);
 	  };
-	
+
 	  /*
 	   * Performs a exclusive map waiting for the first to finish before subscribing to another observable.
 	   * Observables that come in between subscriptions will be dropped on the floor.
@@ -22926,20 +22941,20 @@ module.exports =
 	        isStopped = true,
 	        m = new SingleAssignmentDisposable(),
 	        g = new CompositeDisposable();
-	
+
 	      g.add(m);
-	
+
 	      m.setDisposable(sources.subscribe(
 	        function (innerSource) {
-	
+
 	          if (!hasCurrent) {
 	            hasCurrent = true;
-	
+
 	            innerSubscription = new SingleAssignmentDisposable();
 	            g.add(innerSubscription);
-	
+
 	            isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
-	
+
 	            innerSubscription.setDisposable(innerSource.subscribe(
 	              function (x) {
 	                var result;
@@ -22949,14 +22964,14 @@ module.exports =
 	                  observer.onError(e);
 	                  return;
 	                }
-	
+
 	                observer.onNext(result);
 	              },
 	              function (e) { observer.onError(e); },
 	              function () {
 	                g.remove(innerSubscription);
 	                hasCurrent = false;
-	
+
 	                if (isStopped && g.length === 1) {
 	                  observer.onCompleted();
 	                }
@@ -22973,33 +22988,33 @@ module.exports =
 	      return g;
 	    }, this);
 	  };
-	
+
 	  /** Provides a set of extension methods for virtual time scheduling. */
 	  Rx.VirtualTimeScheduler = (function (__super__) {
-	
+
 	    function localNow() {
 	      return this.toDateTimeOffset(this.clock);
 	    }
-	
+
 	    function scheduleNow(state, action) {
 	      return this.scheduleAbsoluteWithState(state, this.clock, action);
 	    }
-	
+
 	    function scheduleRelative(state, dueTime, action) {
 	      return this.scheduleRelativeWithState(state, this.toRelative(dueTime), action);
 	    }
-	
+
 	    function scheduleAbsolute(state, dueTime, action) {
 	      return this.scheduleRelativeWithState(state, this.toRelative(dueTime - this.now()), action);
 	    }
-	
+
 	    function invokeAction(scheduler, action) {
 	      action();
 	      return disposableEmpty;
 	    }
-	
+
 	    inherits(VirtualTimeScheduler, __super__);
-	
+
 	    /**
 	     * Creates a new virtual time scheduler with the specified initial clock value and absolute time comparer.
 	     *
@@ -23014,9 +23029,9 @@ module.exports =
 	      this.queue = new PriorityQueue(1024);
 	      __super__.call(this, localNow, scheduleNow, scheduleRelative, scheduleAbsolute);
 	    }
-	
+
 	    var VirtualTimeSchedulerPrototype = VirtualTimeScheduler.prototype;
-	
+
 	    /**
 	     * Adds a relative time value to an absolute time value.
 	     * @param {Number} absolute Absolute virtual time value.
@@ -23024,21 +23039,21 @@ module.exports =
 	     * @return {Number} Resulting absolute virtual time sum value.
 	     */
 	    VirtualTimeSchedulerPrototype.add = notImplemented;
-	
+
 	    /**
 	     * Converts an absolute time to a number
 	     * @param {Any} The absolute time.
 	     * @returns {Number} The absolute time in ms
 	     */
 	    VirtualTimeSchedulerPrototype.toDateTimeOffset = notImplemented;
-	
+
 	    /**
 	     * Converts the TimeSpan value to a relative virtual time value.
 	     * @param {Number} timeSpan TimeSpan value to convert.
 	     * @return {Number} Corresponding relative virtual time value.
 	     */
 	    VirtualTimeSchedulerPrototype.toRelative = notImplemented;
-	
+
 	    /**
 	     * Schedules a periodic piece of work by dynamically discovering the scheduler's capabilities. The periodic task will be emulated using recursive scheduling.
 	     * @param {Mixed} state Initial state passed to the action upon the first iteration.
@@ -23050,7 +23065,7 @@ module.exports =
 	      var s = new SchedulePeriodicRecursive(this, state, period, action);
 	      return s.start();
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed after dueTime.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -23062,7 +23077,7 @@ module.exports =
 	      var runAt = this.add(this.clock, dueTime);
 	      return this.scheduleAbsoluteWithState(state, runAt, action);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed at dueTime.
 	     * @param {Number} dueTime Relative time after which to execute the action.
@@ -23072,7 +23087,7 @@ module.exports =
 	    VirtualTimeSchedulerPrototype.scheduleRelative = function (dueTime, action) {
 	      return this.scheduleRelativeWithState(action, dueTime, invokeAction);
 	    };
-	
+
 	    /**
 	     * Starts the virtual time scheduler.
 	     */
@@ -23090,14 +23105,14 @@ module.exports =
 	        } while (this.isEnabled);
 	      }
 	    };
-	
+
 	    /**
 	     * Stops the virtual time scheduler.
 	     */
 	    VirtualTimeSchedulerPrototype.stop = function () {
 	      this.isEnabled = false;
 	    };
-	
+
 	    /**
 	     * Advances the scheduler's clock to the specified time, running all work till that point.
 	     * @param {Number} time Absolute time to advance the scheduler's clock to.
@@ -23120,7 +23135,7 @@ module.exports =
 	        this.clock = time;
 	      }
 	    };
-	
+
 	    /**
 	     * Advances the scheduler's clock by the specified relative time, running all work scheduled for that timespan.
 	     * @param {Number} time Relative time to advance the scheduler's clock by.
@@ -23130,10 +23145,10 @@ module.exports =
 	          dueToClock = this.comparer(this.clock, dt);
 	      if (dueToClock > 0) { throw new ArgumentOutOfRangeError(); }
 	      if (dueToClock === 0) {  return; }
-	
+
 	      this.advanceTo(dt);
 	    };
-	
+
 	    /**
 	     * Advances the scheduler's clock by the specified relative time.
 	     * @param {Number} time Relative time to advance the scheduler's clock by.
@@ -23141,10 +23156,10 @@ module.exports =
 	    VirtualTimeSchedulerPrototype.sleep = function (time) {
 	      var dt = this.add(this.clock, time);
 	      if (this.comparer(this.clock, dt) >= 0) { throw new ArgumentOutOfRangeError(); }
-	
+
 	      this.clock = dt;
 	    };
-	
+
 	    /**
 	     * Gets the next scheduled item to be executed.
 	     * @returns {ScheduledItem} The next scheduled item.
@@ -23160,7 +23175,7 @@ module.exports =
 	      }
 	      return null;
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed at dueTime.
 	     * @param {Scheduler} scheduler Scheduler to execute the action on.
@@ -23171,7 +23186,7 @@ module.exports =
 	    VirtualTimeSchedulerPrototype.scheduleAbsolute = function (dueTime, action) {
 	      return this.scheduleAbsoluteWithState(action, dueTime, invokeAction);
 	    };
-	
+
 	    /**
 	     * Schedules an action to be executed at dueTime.
 	     * @param {Mixed} state State passed to the action to be executed.
@@ -23181,25 +23196,25 @@ module.exports =
 	     */
 	    VirtualTimeSchedulerPrototype.scheduleAbsoluteWithState = function (state, dueTime, action) {
 	      var self = this;
-	
+
 	      function run(scheduler, state1) {
 	        self.queue.remove(si);
 	        return action(scheduler, state1);
 	      }
-	
+
 	      var si = new ScheduledItem(this, state, run, dueTime, this.comparer);
 	      this.queue.enqueue(si);
-	
+
 	      return si.disposable;
 	    };
-	
+
 	    return VirtualTimeScheduler;
 	  }(Scheduler));
-	
+
 	  /** Provides a virtual time scheduler that uses Date for absolute time and number for relative time. */
 	  Rx.HistoricalScheduler = (function (__super__) {
 	    inherits(HistoricalScheduler, __super__);
-	
+
 	    /**
 	     * Creates a new historical scheduler with the specified initial clock value.
 	     * @constructor
@@ -23211,9 +23226,9 @@ module.exports =
 	      var cmp = comparer || defaultSubComparer;
 	      __super__.call(this, clock, cmp);
 	    }
-	
+
 	    var HistoricalSchedulerProto = HistoricalScheduler.prototype;
-	
+
 	    /**
 	     * Adds a relative time value to an absolute time value.
 	     * @param {Number} absolute Absolute virtual time value.
@@ -23223,11 +23238,11 @@ module.exports =
 	    HistoricalSchedulerProto.add = function (absolute, relative) {
 	      return absolute + relative;
 	    };
-	
+
 	    HistoricalSchedulerProto.toDateTimeOffset = function (absolute) {
 	      return new Date(absolute).getTime();
 	    };
-	
+
 	    /**
 	     * Converts the TimeSpan value to a relative virtual time value.
 	     * @memberOf HistoricalScheduler
@@ -23237,35 +23252,35 @@ module.exports =
 	    HistoricalSchedulerProto.toRelative = function (timeSpan) {
 	      return timeSpan;
 	    };
-	
+
 	    return HistoricalScheduler;
 	  }(Rx.VirtualTimeScheduler));
-	
+
 	  var AnonymousObservable = Rx.AnonymousObservable = (function (__super__) {
 	    inherits(AnonymousObservable, __super__);
-	
+
 	    // Fix subscriber to check for undefined or function returned to decorate as Disposable
 	    function fixSubscriber(subscriber) {
 	      return subscriber && isFunction(subscriber.dispose) ? subscriber :
 	        isFunction(subscriber) ? disposableCreate(subscriber) : disposableEmpty;
 	    }
-	
+
 	    function setDisposable(s, state) {
 	      var ado = state[0], subscribe = state[1];
 	      var sub = tryCatch(subscribe)(ado);
-	
+
 	      if (sub === errorObj) {
 	        if(!ado.fail(errorObj.e)) { return thrower(errorObj.e); }
 	      }
 	      ado.setDisposable(fixSubscriber(sub));
 	    }
-	
+
 	    function AnonymousObservable(subscribe, parent) {
 	      this.source = parent;
-	
+
 	      function s(observer) {
 	        var ado = new AutoDetachObserver(observer), state = [ado, subscribe];
-	
+
 	        if (currentThreadScheduler.scheduleRequired()) {
 	          currentThreadScheduler.scheduleWithState(state, setDisposable);
 	        } else {
@@ -23273,25 +23288,25 @@ module.exports =
 	        }
 	        return ado;
 	      }
-	
+
 	      __super__.call(this, s);
 	    }
-	
+
 	    return AnonymousObservable;
-	
+
 	  }(Observable));
-	
+
 	  var AutoDetachObserver = (function (__super__) {
 	    inherits(AutoDetachObserver, __super__);
-	
+
 	    function AutoDetachObserver(observer) {
 	      __super__.call(this);
 	      this.observer = observer;
 	      this.m = new SingleAssignmentDisposable();
 	    }
-	
+
 	    var AutoDetachObserverPrototype = AutoDetachObserver.prototype;
-	
+
 	    AutoDetachObserverPrototype.next = function (value) {
 	      var result = tryCatch(this.observer.onNext).call(this.observer, value);
 	      if (result === errorObj) {
@@ -23299,37 +23314,37 @@ module.exports =
 	        thrower(result.e);
 	      }
 	    };
-	
+
 	    AutoDetachObserverPrototype.error = function (err) {
 	      var result = tryCatch(this.observer.onError).call(this.observer, err);
 	      this.dispose();
 	      result === errorObj && thrower(result.e);
 	    };
-	
+
 	    AutoDetachObserverPrototype.completed = function () {
 	      var result = tryCatch(this.observer.onCompleted).call(this.observer);
 	      this.dispose();
 	      result === errorObj && thrower(result.e);
 	    };
-	
+
 	    AutoDetachObserverPrototype.setDisposable = function (value) { this.m.setDisposable(value); };
 	    AutoDetachObserverPrototype.getDisposable = function () { return this.m.getDisposable(); };
-	
+
 	    AutoDetachObserverPrototype.dispose = function () {
 	      __super__.prototype.dispose.call(this);
 	      this.m.dispose();
 	    };
-	
+
 	    return AutoDetachObserver;
 	  }(AbstractObserver));
-	
+
 	  var GroupedObservable = (function (__super__) {
 	    inherits(GroupedObservable, __super__);
-	
+
 	    function subscribe(observer) {
 	      return this.underlyingObservable.subscribe(observer);
 	    }
-	
+
 	    function GroupedObservable(key, underlyingObservable, mergedDisposable) {
 	      __super__.call(this, subscribe);
 	      this.key = key;
@@ -23339,10 +23354,10 @@ module.exports =
 	          return new CompositeDisposable(mergedDisposable.getDisposable(), underlyingObservable.subscribe(observer));
 	        });
 	    }
-	
+
 	    return GroupedObservable;
 	  }(Observable));
-	
+
 	  /**
 	   *  Represents an object that is both an observable sequence as well as an observer.
 	   *  Each notification is broadcasted to all subscribed observers.
@@ -23361,9 +23376,9 @@ module.exports =
 	      observer.onCompleted();
 	      return disposableEmpty;
 	    }
-	
+
 	    inherits(Subject, __super__);
-	
+
 	    /**
 	     * Creates a subject.
 	     */
@@ -23374,7 +23389,7 @@ module.exports =
 	      this.observers = [];
 	      this.hasError = false;
 	    }
-	
+
 	    addProperties(Subject.prototype, Observer.prototype, {
 	      /**
 	       * Indicates whether the subject has observers subscribed to it.
@@ -23391,7 +23406,7 @@ module.exports =
 	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onCompleted();
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -23408,7 +23423,7 @@ module.exports =
 	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onError(error);
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -23432,7 +23447,7 @@ module.exports =
 	        this.observers = null;
 	      }
 	    });
-	
+
 	    /**
 	     * Creates a subject from the specified observer and observable.
 	     * @param {Observer} observer The observer used to send messages to the subject.
@@ -23442,24 +23457,24 @@ module.exports =
 	    Subject.create = function (observer, observable) {
 	      return new AnonymousSubject(observer, observable);
 	    };
-	
+
 	    return Subject;
 	  }(Observable));
-	
+
 	  /**
 	   *  Represents the result of an asynchronous operation.
 	   *  The last value before the OnCompleted notification, or the error received through OnError, is sent to all subscribed observers.
 	   */
 	  var AsyncSubject = Rx.AsyncSubject = (function (__super__) {
-	
+
 	    function subscribe(observer) {
 	      checkDisposed(this);
-	
+
 	      if (!this.isStopped) {
 	        this.observers.push(observer);
 	        return new InnerSubscription(this, observer);
 	      }
-	
+
 	      if (this.hasError) {
 	        observer.onError(this.error);
 	      } else if (this.hasValue) {
@@ -23468,26 +23483,26 @@ module.exports =
 	      } else {
 	        observer.onCompleted();
 	      }
-	
+
 	      return disposableEmpty;
 	    }
-	
+
 	    inherits(AsyncSubject, __super__);
-	
+
 	    /**
 	     * Creates a subject that can only receive one value and that value is cached for all future observations.
 	     * @constructor
 	     */
 	    function AsyncSubject() {
 	      __super__.call(this, subscribe);
-	
+
 	      this.isDisposed = false;
 	      this.isStopped = false;
 	      this.hasValue = false;
 	      this.observers = [];
 	      this.hasError = false;
 	    }
-	
+
 	    addProperties(AsyncSubject.prototype, Observer, {
 	      /**
 	       * Indicates whether the subject has observers subscribed to it.
@@ -23506,7 +23521,7 @@ module.exports =
 	        if (!this.isStopped) {
 	          this.isStopped = true;
 	          var os = cloneArray(this.observers), len = os.length;
-	
+
 	          if (this.hasValue) {
 	            for (i = 0; i < len; i++) {
 	              var o = os[i];
@@ -23518,7 +23533,7 @@ module.exports =
 	              os[i].onCompleted();
 	            }
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -23532,11 +23547,11 @@ module.exports =
 	          this.isStopped = true;
 	          this.hasError = true;
 	          this.error = error;
-	
+
 	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onError(error);
 	          }
-	
+
 	          this.observers.length = 0;
 	        }
 	      },
@@ -23560,23 +23575,23 @@ module.exports =
 	        this.value = null;
 	      }
 	    });
-	
+
 	    return AsyncSubject;
 	  }(Observable));
-	
+
 	  var AnonymousSubject = Rx.AnonymousSubject = (function (__super__) {
 	    inherits(AnonymousSubject, __super__);
-	
+
 	    function subscribe(observer) {
 	      return this.observable.subscribe(observer);
 	    }
-	
+
 	    function AnonymousSubject(observer, observable) {
 	      this.observer = observer;
 	      this.observable = observable;
 	      __super__.call(this, subscribe);
 	    }
-	
+
 	    addProperties(AnonymousSubject.prototype, Observer.prototype, {
 	      onCompleted: function () {
 	        this.observer.onCompleted();
@@ -23588,36 +23603,36 @@ module.exports =
 	        this.observer.onNext(value);
 	      }
 	    });
-	
+
 	    return AnonymousSubject;
 	  }(Observable));
-	
+
 	  /**
 	  * Used to pause and resume streams.
 	  */
 	  Rx.Pauser = (function (__super__) {
 	    inherits(Pauser, __super__);
-	
+
 	    function Pauser() {
 	      __super__.call(this);
 	    }
-	
+
 	    /**
 	     * Pauses the underlying sequence.
 	     */
 	    Pauser.prototype.pause = function () { this.onNext(false); };
-	
+
 	    /**
 	    * Resumes the underlying sequence.
 	    */
 	    Pauser.prototype.resume = function () { this.onNext(true); };
-	
+
 	    return Pauser;
 	  }(Subject));
-	
+
 	  if (true) {
 	    root.Rx = Rx;
-	
+
 	    !(__WEBPACK_AMD_DEFINE_RESULT__ = function() {
 	      return Rx;
 	    }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
@@ -23632,12 +23647,12 @@ module.exports =
 	    // in a browser or Rhino
 	    root.Rx = Rx;
 	  }
-	
+
 	  // All code before this point will be filtered from stack traces.
 	  var rEndingLine = captureLine();
-	
+
 	}.call(this));
-	
+
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(19)(module), (function() { return this; }()), __webpack_require__(20)))
 
 /***/ },
@@ -23657,32 +23672,32 @@ module.exports =
 	var GetResponse = __webpack_require__(115);
 	var IdempotentResponse = __webpack_require__(131);
 	var InvalidSourceError = __webpack_require__(26);
-	
+
 	var arrayFlatMap = __webpack_require__(136);
 	var emptyArray = new Array(0);
-	
+
 	function SetResponse(subscribe) {
 	    IdempotentResponse.call(this, subscribe || subscribeToSetResponse);
 	}
-	
+
 	SetResponse.create = IdempotentResponse.create;
-	
+
 	SetResponse.prototype = Object.create(IdempotentResponse.prototype);
 	SetResponse.prototype.method = "set";
 	SetResponse.prototype.constructor = SetResponse;
-	
+
 	SetResponse.prototype.invokeSourceRequest = function invokeSourceRequest(model) {
-	
+
 	    var source = this;
 	    var caught = this.catch(function setJSONGraph(results) {
-	
+
 	        var requestObs;
 	        if (results && results.invokeSourceRequest === true) {
-	
+
 	            var envelope = {};
 	            var boundPath = model._path;
 	            var optimizedPaths = results.optimizedPaths;
-	
+
 	            model._path = emptyArray;
 	            model._getPathValuesAsJSONG(model._materialize().withoutDataSource(), optimizedPaths, [envelope]);
 	            model._path = boundPath;
@@ -23713,31 +23728,31 @@ module.exports =
 	        else {
 	            requestObs = Observable.throw(results);
 	        }
-	
+
 	        return requestObs;
 	    });
-	
+
 	    return new this.constructor(function(observer) {
 	        return caught.subscribe(observer);
 	    });
 	};
-	
+
 	function subscribeToSetResponse(observer) {
-	
+
 	    if (this.isCompleted) {
 	        return subscribeToFollowupGet.call(this, observer);
 	    }
-	
+
 	    return subscribeToLocalSet.call(this, observer);
 	}
-	
+
 	function subscribeToLocalSet(observer) {
-	
+
 	    if (this.subscribeCount++ > this.subscribeLimit) {
 	        observer.onError("Loop kill switch thrown.");
 	        return Disposable.empty;
 	    }
-	
+
 	    var requestedPaths = [];
 	    var optimizedPaths = [];
 	    var model = this.model;
@@ -23745,26 +23760,26 @@ module.exports =
 	    var modelRoot = model._root;
 	    var outputFormat = this.outputFormat;
 	    var errorSelector = modelRoot.errorSelector;
-	
+
 	    var method = this.method;
 	    var groups = this.groups;
 	    var groupIndex = -1;
 	    var groupCount = groups.length;
-	
+
 	    while (++groupIndex < groupCount) {
-	
+
 	        var group = groups[groupIndex];
 	        var inputType = group.inputType;
 	        var methodArgs = group.arguments;
-	
+
 	        if (methodArgs.length > 0) {
-	
+
 	            var operationName = "_" + method + inputType + outputFormat;
 	            var operationFunc = model[operationName];
 	            var successfulPaths = operationFunc(model, methodArgs, null, errorSelector);
-	
+
 	            optimizedPaths.push.apply(optimizedPaths, successfulPaths[1]);
-	
+
 	            if (inputType === "PathValues") {
 	                requestedPaths.push.apply(requestedPaths, methodArgs.map(pluckPath));
 	            } else if (inputType === "JSONGs") {
@@ -23774,9 +23789,9 @@ module.exports =
 	            }
 	        }
 	    }
-	
+
 	    this.requestedPaths = requestedPaths;
-	
+
 	    if (isMaster) {
 	        this.isCompleted = true;
 	        return subscribeToFollowupGet.call(this, observer);
@@ -23788,7 +23803,7 @@ module.exports =
 	        });
 	    }
 	}
-	
+
 	function subscribeToFollowupGet(observer) {
 	    var response = new GetResponse(this.model, this.requestedPaths);
 	    if (this.outputFormat === "AsJSONG") {
@@ -23799,15 +23814,15 @@ module.exports =
 	    }
 	    return response.subscribe(observer);
 	}
-	
+
 	function pluckPath(pathValue) {
 	    return pathValue.path;
 	}
-	
+
 	function pluckEnvelopePaths(jsonGraphEnvelope) {
 	    return jsonGraphEnvelope.paths;
 	}
-	
+
 	module.exports = SetResponse;
 
 
@@ -23820,7 +23835,7 @@ module.exports =
 	var getRequestCycle = __webpack_require__(127);
 	var empty = {dispose: function() {}};
 	var Observable = __webpack_require__(18).Observable;
-	
+
 	/**
 	 * The get response.  It takes in a model and paths and starts
 	 * the request cycle.  It has been optimized for cache first requests
@@ -23837,13 +23852,13 @@ module.exports =
 	    this.isJSONGraph = isJSONGraph || false;
 	    this.isProgressive = isProgressive || false;
 	};
-	
+
 	GetResponse.prototype = Object.create(Observable.prototype);
-	
+
 	// becomes a subscribable/thenable from ModelResponse.
 	GetResponse.prototype.subscribe = ModelResponse.prototype.subscribe;
 	GetResponse.prototype.then = ModelResponse.prototype.then;
-	
+
 	/**
 	 * Makes the output of a get response JSONGraph instead of json.
 	 * @private
@@ -23852,7 +23867,7 @@ module.exports =
 	    return new GetResponse(this.model, this.currentRemainingPaths,
 	                           true, this.isProgressive);
 	};
-	
+
 	/**
 	 * Progressively responding to data in the cache instead of once the whole
 	 * operation is complete.
@@ -23862,7 +23877,7 @@ module.exports =
 	    return new GetResponse(this.model, this.currentRemainingPaths,
 	                           this.isJSONGraph, true);
 	};
-	
+
 	/**
 	 * purely for the purposes of closure creation other than the initial
 	 * prototype created closure.
@@ -23877,12 +23892,12 @@ module.exports =
 	    var results = checkCacheAndReport(this.model, this.currentRemainingPaths,
 	                                      observer, isProgressive, isJSONG, seed,
 	                                      errors);
-	
+
 	    // If there are no results, finish.
 	    if (!results) {
 	        return empty;
 	    }
-	
+
 	    // Starts the async request cycle.
 	    return getRequestCycle(this, this.model, results,
 	                           observer, seed, errors, 1);
@@ -23896,7 +23911,7 @@ module.exports =
 	var gets = __webpack_require__(117);
 	var getWithPathsAsJSONGraph = gets.getWithPathsAsJSONGraph;
 	var getWithPathsAsPathMap = gets.getWithPathsAsPathMap;
-	
+
 	/**
 	 * Checks cache for the paths and reports if in progressive mode.  If
 	 * there are missing paths then return the cache hit results.
@@ -23914,7 +23929,7 @@ module.exports =
 	module.exports = function checkCacheAndReport(model, requestedPaths, observer,
 	                                              progressive, isJSONG, seed,
 	                                              errors) {
-	
+
 	    // checks the cache for the data.
 	    var results;
 	    if (isJSONG) {
@@ -23922,7 +23937,7 @@ module.exports =
 	    } else {
 	        results = getWithPathsAsPathMap(model, requestedPaths, seed);
 	    }
-	
+
 	    // We must communicate critical errors from get that are critical
 	    // errors such as bound path is broken or this is a JSONGraph request
 	    // with a bound path.
@@ -23930,12 +23945,12 @@ module.exports =
 	        observer.onError(results.criticalError);
 	        return null;
 	    }
-	
+
 	    // We are done when there are no missing paths or the model does not
 	    // have a dataSource to continue on fetching from.
 	    var hasValues = results.hasValue;
 	    var completed = !results.requestedMissingPaths || !model._source;
-	
+
 	    // Copy the errors into the total errors array.
 	    if (results.errors) {
 	        var errs = results.errors;
@@ -23944,9 +23959,9 @@ module.exports =
 	            errors[errorsLength] = errs[i];
 	        }
 	    }
-	
+
 	    // If there are values to report, then report.
-	
+
 	    if (hasValues && (progressive || completed)) {
 	        // TODO: Remove the sync counter
 	        try {
@@ -23958,7 +23973,7 @@ module.exports =
 	            --model._root.syncRefCount;
 	        }
 	    }
-	
+
 	    // if there are missing paths, then lets return them.
 	    if (completed) {
 	        if (errors.length) {
@@ -23966,10 +23981,10 @@ module.exports =
 	        } else {
 	            observer.onCompleted();
 	        }
-	
+
 	        return null;
 	    }
-	
+
 	    // Return the results object.
 	    return results;
 	};
@@ -23981,10 +23996,10 @@ module.exports =
 
 	var get = __webpack_require__(118);
 	var walkPath = __webpack_require__(121);
-	
+
 	var getWithPathsAsPathMap = get(walkPath, false);
 	var getWithPathsAsJSONGraph = get(walkPath, true);
-	
+
 	module.exports = {
 	    getValueSync: __webpack_require__(93),
 	    getBoundValue: __webpack_require__(92),
@@ -24000,7 +24015,7 @@ module.exports =
 	var getCachePosition = __webpack_require__(119);
 	var InvalidModelError = __webpack_require__(101);
 	var BoundJSONGraphModelError = __webpack_require__(120);
-	
+
 	module.exports = function get(walk, isJSONG) {
 	    return function innerGet(model, paths, seed) {
 	        var valueNode = seed[0];
@@ -24014,10 +24029,10 @@ module.exports =
 	        var optimizedPath, optimizedLength = boundPath.length;
 	        var i, len;
 	        var requestedPath = [];
-	
+
 	        // If the model is bound, then get that cache position.
 	        if (optimizedLength) {
-	
+
 	            // JSONGraph output cannot ever be bound or else it will
 	            // throw an error.
 	            if (isJSONG) {
@@ -24026,7 +24041,7 @@ module.exports =
 	                };
 	            }
 	            currentCachePosition = getCachePosition(model, boundPath);
-	
+
 	            // If there was a short, then we 'throw an error' to the outside
 	            // calling function which will onError the observer.
 	            if (currentCachePosition.$type) {
@@ -24034,7 +24049,7 @@ module.exports =
 	                    criticalError: new InvalidModelError(boundPath, boundPath)
 	                };
 	            }
-	
+
 	            // We need to get the new cache position and copy the bound
 	            // path.
 	            optimizedPath = [];
@@ -24042,13 +24057,13 @@ module.exports =
 	                optimizedPath[i] = boundPath[i];
 	            }
 	        }
-	
+
 	        // Update the optimized path if we
 	        else {
 	            optimizedPath = [];
 	            optimizedLength = 0;
 	        }
-	
+
 	        for (i = 0, len = paths.length; i < len; i++) {
 	            walk(model, cache, currentCachePosition, paths[i], 0,
 	                 valueNode, results, requestedPath, optimizedPath,
@@ -24076,15 +24091,15 @@ module.exports =
 	    var currentCachePosition = model._root.cache;
 	    var depth = -1;
 	    var maxDepth = path.length;
-	
+
 	    // The loop is simple now, we follow the current cache position until
 	    //
 	    while (++depth < maxDepth &&
 	           currentCachePosition && !currentCachePosition.$type) {
-	
+
 	        currentCachePosition = currentCachePosition[path[depth]];
 	    }
-	
+
 	    return currentCachePosition;
 	};
 
@@ -24103,7 +24118,7 @@ module.exports =
 	    this.message = BoundJSONGraphModelError.message;
 	    this.stack = (new Error()).stack;
 	}
-	
+
 	// instanceof will be an error, but stack will be correct because its defined in the constructor.
 	BoundJSONGraphModelError.prototype = new Error();
 	BoundJSONGraphModelError.prototype.name = "BoundJSONGraphModelError";
@@ -24111,7 +24126,7 @@ module.exports =
 	    "It is not legal to use the JSON Graph " +
 	    "format from a bound Model. JSON Graph format" +
 	    " can only be used from a root model.";
-	
+
 	module.exports = BoundJSONGraphModelError;
 
 
@@ -24125,15 +24140,15 @@ module.exports =
 	var iterateKeySet = __webpack_require__(27).iterateKeySet;
 	var $ref = __webpack_require__(45);
 	var promote = __webpack_require__(97).promote;
-	
+
 	module.exports = function walkPath(model, root, curr, path, depth, seed,
 	                                   outerResults, requestedPath,
 	                                   optimizedPathArg, optimizedLength, isJSONG,
 	                                   fromReferenceArg) {
-	
+
 	    var fromReference = fromReferenceArg;
 	    var optimizedPath = optimizedPathArg;
-	
+
 	    // If there is not a value in the current cache position or its a
 	    // value type, then we are at the end of the getWalk.
 	    if ((!curr || curr && curr.$type) || depth === path.length) {
@@ -24142,10 +24157,10 @@ module.exports =
 	                isJSONG, fromReference);
 	        return;
 	    }
-	
+
 	    var keySet, i;
 	    keySet = path[depth];
-	
+
 	    var isKeySet = typeof keySet === "object";
 	    var nextDepth = depth + 1;
 	    var iteratorNote = false;
@@ -24154,20 +24169,20 @@ module.exports =
 	        iteratorNote = {};
 	        key = iterateKeySet(keySet, iteratorNote);
 	    }
-	
+
 	    // The key can be undefined if there is an empty path.  An example of an
 	    // empty path is: [lolomo, [], summary]
 	    if (key === undefined && iteratorNote.done) {
 	        return;
 	    }
-	
+
 	    // loop over every key over the keySet
 	    var optimizedLengthPlus1 = optimizedLength + 1;
 	    do {
 	        fromReference = false;
-	
+
 	        var next;
-	
+
 	        if (key === null) {
 	            next = curr;
 	        }
@@ -24176,15 +24191,15 @@ module.exports =
 	            optimizedPath[optimizedLength] = key;
 	            requestedPath[depth] = key;
 	        }
-	
+
 	        var nextOptimizedPath = optimizedPath;
 	        var nextOptimizedLength = optimizedLengthPlus1;
-	
+
 	        // If there is the next position we need to consider references.
 	        if (next) {
 	            var nType = next.$type;
 	            var value = nType && next.value || next;
-	
+
 	            // If next is a reference follow it.  If we are in JSONG mode,
 	            // report that value into the seed without passing the requested
 	            // path.  If a requested path is passed to onValueType then it
@@ -24196,7 +24211,7 @@ module.exports =
 	                                outerResults, null, optimizedPath,
 	                                nextOptimizedLength, isJSONG, fromReference);
 	                }
-	
+
 	                // promote the reference so that it will not be cleaned out of
 	                // the cache when its heavily used.
 	                promote(model, next);
@@ -24212,17 +24227,17 @@ module.exports =
 	                }
 	            }
 	        }
-	
+
 	        // Recurse to the next level.
 	        walkPath(model, root, next, path, nextDepth, seed, outerResults,
 	                requestedPath, nextOptimizedPath, nextOptimizedLength,
 	                isJSONG, fromReference);
-	
+
 	        // If the iteratorNote is not done, get the next key.
 	        if (iteratorNote && !iteratorNote.done) {
 	            key = iterateKeySet(keySet, iteratorNote);
 	        }
-	
+
 	    } while (iteratorNote && !iteratorNote.done);
 	};
 
@@ -24242,7 +24257,7 @@ module.exports =
 	var onMissing = __webpack_require__(124);
 	var isMaterialized = __webpack_require__(126);
 	var __invalidated = __webpack_require__(58);
-	
+
 	/**
 	 * When we land on a valueType (or nothing) then we need to report it out to
 	 * the outerResults through errors, missing, or values.
@@ -24252,10 +24267,10 @@ module.exports =
 	module.exports = function onValueType(
 	    model, node, path, depth, seed, outerResults,
 	    requestedPath, optimizedPath, optimizedLength, isJSONG, fromReference) {
-	
+
 	    var currType = node && node.$type;
 	    var requiresMaterializedToReport = node && node.value === undefined;
-	
+
 	    // There are is nothing here, ether report value, or report the value
 	    // that is missing.  If there is no type then report the missing value.
 	    if (!node || !currType) {
@@ -24270,7 +24285,7 @@ module.exports =
 	        }
 	        return;
 	    }
-	
+
 	    // If there are expired value, then report it as missing
 	    else if (isExpired(node)) {
 	        if (!node[__invalidated]) {
@@ -24281,7 +24296,7 @@ module.exports =
 	                  outerResults, requestedPath,
 	                  optimizedPath, optimizedLength);
 	    }
-	
+
 	    // If there is an error, then report it as a value if
 	    else if (currType === $error) {
 	        if (fromReference) {
@@ -24294,22 +24309,22 @@ module.exports =
 	            onError(model, node, depth, requestedPath, outerResults);
 	        }
 	    }
-	
+
 	    // Report the value
 	    else {
 	        if (fromReference) {
 	            requestedPath[depth] = null;
 	        }
-	
+
 	        if (!requiresMaterializedToReport ||
 	            requiresMaterializedToReport && model._materialized) {
-	
+
 	            onValue(model, node, seed, depth, outerResults, requestedPath,
 	                    optimizedPath, optimizedLength, isJSONG, fromReference);
 	        }
 	    }
 	};
-	
+
 
 
 /***/ },
@@ -24319,14 +24334,14 @@ module.exports =
 	var lru = __webpack_require__(97);
 	var clone = __webpack_require__(98);
 	var promote = lru.promote;
-	
+
 	module.exports = function onError(model, node, depth,
 	                                  requestedPath, outerResults) {
 	    var value = node.value;
 	    if (!outerResults.errors) {
 	        outerResults.errors = [];
 	    }
-	
+
 	    if (model._boxed) {
 	        value = clone(node);
 	    }
@@ -24344,7 +24359,7 @@ module.exports =
 
 	var support = __webpack_require__(125);
 	var fastCopy = support.fastCopy;
-	
+
 	module.exports = function onMissing(model, path, depth,
 	                                    outerResults, requestedPath,
 	                                    optimizedPath, optimizedLength) {
@@ -24353,26 +24368,26 @@ module.exports =
 	        outerResults.requestedMissingPaths = [];
 	        outerResults.optimizedMissingPaths = [];
 	    }
-	
+
 	    if (depth < path.length) {
 	        pathSlice = fastCopy(path, depth);
 	    } else {
 	        pathSlice = [];
 	    }
-	
+
 	    concatAndInsertMissing(model, pathSlice, depth, requestedPath,
 	                           optimizedPath, optimizedLength, outerResults);
 	};
-	
+
 	function concatAndInsertMissing(model, remainingPath, depth, requestedPath,
 	                                optimizedPath, optimizedLength, results) {
-	
+
 	    // TODO: Performance.
 	    results.requestedMissingPaths.push(
 	        requestedPath.
 	            slice(0, depth).
 	            concat(remainingPath));
-	
+
 	    results.optimizedMissingPaths.push(
 	        optimizedPath.slice(0, optimizedLength).concat(remainingPath));
 	}
@@ -24389,7 +24404,7 @@ module.exports =
 	    }
 	    return a;
 	}
-	
+
 	function fastCatSkipNulls(arr1, arr2) {
 	    var a = [], i, len, j;
 	    for (i = 0, len = arr1.length; i < len; i++) {
@@ -24402,7 +24417,7 @@ module.exports =
 	    }
 	    return a;
 	}
-	
+
 	function fastCat(arr1, arr2) {
 	    var a = [], i, len, j;
 	    for (i = 0, len = arr1.length; i < len; i++) {
@@ -24413,9 +24428,9 @@ module.exports =
 	    }
 	    return a;
 	}
-	
-	
-	
+
+
+
 	module.exports = {
 	    fastCat: fastCat,
 	    fastCatSkipNulls: fastCatSkipNulls,
@@ -24443,7 +24458,7 @@ module.exports =
 	var getSize = __webpack_require__(63);
 	var AssignableDisposable = __webpack_require__(130);
 	var __version = __webpack_require__(42);
-	
+
 	/**
 	 * The get request cycle for checking the cache and reporting
 	 * values.  If there are missing paths then the async request cycle to
@@ -24464,12 +24479,12 @@ module.exports =
 	    if (count === 10) {
 	        throw new MaxRetryExceededError();
 	    }
-	
+
 	    var requestQueue = model._request;
 	    var requestedMissingPaths = results.requestedMissingPaths;
 	    var optimizedMissingPaths = results.optimizedMissingPaths;
 	    var disposable = new AssignableDisposable();
-	
+
 	    // We need to prepend the bound path to all requested missing paths and
 	    // pass those into the requestQueue.
 	    var boundRequestedMissingPaths = [];
@@ -24480,16 +24495,16 @@ module.exports =
 	                fastCat(boundPath, requestedMissingPaths[i]);
 	        }
 	    }
-	
+
 	    // No bound path, no array copy and concat.
 	    else {
 	        boundRequestedMissingPaths = requestedMissingPaths;
 	    }
-	
+
 	    var currentRequestDisposable = requestQueue.
 	        get(boundRequestedMissingPaths, optimizedMissingPaths, function() {
-	
-	
+
+
 	            // Once the request queue finishes, check the cache and bail if
 	            // we can.
 	            var nextResults = checkCacheAndReport(model, requestedMissingPaths,
@@ -24497,29 +24512,29 @@ module.exports =
 	                                                  getResponse.isProgressive,
 	                                                  getResponse.isJSONGraph,
 	                                                  seed, errors);
-	
+
 	            // If there are missing paths coming back form checkCacheAndReport
 	            // the its reported from the core cache check method.
 	            if (nextResults) {
-	
+
 	                // update the which disposable to use.
 	                disposable.currentDisposable =
 	                    getRequestCycle(getResponse, model, nextResults, observer,
 	                                    seed, errors, count + 1);
 	            }
-	
+
 	            // We have finished.  Since we went to the dataSource, we must
 	            // collect on the cache.
 	            else {
-	
+
 	                var modelRoot = model._root;
 	                var modelCache = modelRoot.cache;
 	                var currentVersion = modelCache[__version];
-	
+
 	                collectLru(modelRoot, modelRoot.expired, getSize(modelCache),
 	                        model._maxSize, model._collectRatio, currentVersion);
 	            }
-	
+
 	        });
 	    disposable.currentDisposable = currentRequestDisposable;
 	    return disposable;
@@ -24541,7 +24556,7 @@ module.exports =
 	    this.message = "The allowed number of retries have been exceeded.";
 	    this.stack = (new Error()).stack;
 	}
-	
+
 	// instanceof will be an error, but stack will be correct because its defined
 	// in the constructor.
 	MaxRetryExceededError.prototype = new Error();
@@ -24549,7 +24564,7 @@ module.exports =
 	MaxRetryExceededError.is = function(e) {
 	    return e && e.name === NAME;
 	};
-	
+
 	module.exports = MaxRetryExceededError;
 
 
@@ -24559,30 +24574,30 @@ module.exports =
 
 	var __key = __webpack_require__(38);
 	var __parent = __webpack_require__(61);
-	
+
 	var __head = __webpack_require__(48);
 	var __tail = __webpack_require__(49);
 	var __next = __webpack_require__(50);
 	var __prev = __webpack_require__(51);
-	
+
 	var removeNode = __webpack_require__(85);
 	var updateNodeAncestors = __webpack_require__(88);
-	
+
 	module.exports = function collect(lru, expired, totalArg, max, ratioArg, version) {
-	
+
 	    var total = totalArg;
 	    var ratio = ratioArg;
-	
+
 	    if (typeof ratio !== "number") {
 	        ratio = 0.75;
 	    }
-	
+
 	    var shouldUpdate = typeof version === "number";
 	    var targetSize = max * ratio;
 	    var parent, node, size;
-	
+
 	    node = expired.pop();
-	
+
 	    while (node) {
 	        size = node.$size || 0;
 	        total -= size;
@@ -24593,7 +24608,7 @@ module.exports =
 	        }
 	        node = expired.pop();
 	    }
-	
+
 	    if (total >= max) {
 	        var prev = lru[__tail];
 	        node = prev;
@@ -24606,7 +24621,7 @@ module.exports =
 	            }
 	            node = prev;
 	        }
-	
+
 	        lru[__tail] = lru[__prev] = node;
 	        if (node == null) {
 	            lru[__head] = lru[__next] = void 0;
@@ -24630,10 +24645,10 @@ module.exports =
 	    this.disposed = false;
 	    this.currentDisposable = disosableCallback;
 	};
-	
-	
+
+
 	AssignableDisposable.prototype = {
-	
+
 	    /**
 	     * Disposes of the current disposable.  This would be the getRequestCycle
 	     * disposable.
@@ -24643,21 +24658,21 @@ module.exports =
 	            return;
 	        }
 	        this.disposed = true;
-	
+
 	        // If the current disposable fulfills the disposable interface or just
 	        // a disposable function.
 	        var currentDisposable = this.currentDisposable;
 	        if (currentDisposable.dispose) {
 	            currentDisposable.dispose();
 	        }
-	
+
 	        else {
 	            currentDisposable();
 	        }
 	    }
 	};
-	
-	
+
+
 	module.exports = AssignableDisposable;
 
 
@@ -24667,49 +24682,49 @@ module.exports =
 
 	var Rx = __webpack_require__(18);
 	var Observable = Rx.Observable;
-	
+
 	var ModelResponse = __webpack_require__(110);
-	
+
 	var pathSyntax = __webpack_require__(68);
-	
+
 	var getSize = __webpack_require__(63);
 	var collectLru = __webpack_require__(129);
-	
+
 	var arrayClone = __webpack_require__(132);
 	var __version = __webpack_require__(42);
-	
+
 	var isArray = Array.isArray;
 	var isPathValue = __webpack_require__(133);
 	var isJSONEnvelope = __webpack_require__(134);
 	var isJSONGraphEnvelope = __webpack_require__(135);
-	
+
 	function IdempotentResponse(subscribe) {
 	    Observable.call(this, subscribe);
 	}
-	
+
 	IdempotentResponse.create = ModelResponse.create;
-	
+
 	IdempotentResponse.prototype = Object.create(Observable.prototype);
 	IdempotentResponse.prototype.constructor = IdempotentResponse;
-	
+
 	IdempotentResponse.prototype.subscribeCount = 0;
 	IdempotentResponse.prototype.subscribeLimit = 10;
-	
+
 	IdempotentResponse.prototype.initialize = function initializeResponse() {
-	
+
 	    var model = this.model;
 	    var outputFormat = this.outputFormat || "AsPathMap";
 	    var isProgressive = this.isProgressive;
 	    var values = [{}];
-	
+
 	    var groups = [];
 	    var args = this.args;
-	
+
 	    var group, groupType;
-	
+
 	    var argIndex = -1;
 	    var argCount = args.length;
-	
+
 	    // Validation of arguments have been moved out of this function.
 	    while (++argIndex < argCount) {
 	        var arg = args[argIndex];
@@ -24734,10 +24749,10 @@ module.exports =
 	            groups.push(group);
 	            group.values = values;
 	        }
-	
+
 	        group.arguments.push(arg);
 	    }
-	
+
 	    this.boundPath = arrayClone(model._path);
 	    this.groups = groups;
 	    this.outputFormat = outputFormat;
@@ -24745,31 +24760,31 @@ module.exports =
 	    this.isCompleted = false;
 	    this.isMaster = model._source == null;
 	    this.values = values;
-	
+
 	    return this;
 	};
-	
+
 	IdempotentResponse.prototype.invokeSourceRequest = function invokeSourceRequest(model) {
 	    return this;
 	};
-	
+
 	IdempotentResponse.prototype.ensureCollect = function ensureCollect(model) {
 	    var ensured = this.finally(function ensureCollect() {
-	
+
 	        var modelRoot = model._root;
 	        var modelCache = modelRoot.cache;
-	
+
 	        modelRoot.collectionScheduler.schedule(function collectThisPass() {
 	            collectLru(modelRoot, modelRoot.expired, getSize(modelCache),
 	                model._maxSize, model._collectRatio, modelCache[__version]);
 	        });
 	    });
-	
+
 	    return new this.constructor(function(observer) {
 	        return ensured.subscribe(observer);
 	    });
 	};
-	
+
 	module.exports = IdempotentResponse;
 
 
@@ -24797,7 +24812,7 @@ module.exports =
 
 	var isArray = Array.isArray;
 	var isObject = __webpack_require__(16);
-	
+
 	module.exports = function isPathValue(pathValue) {
 	    return isObject(pathValue) && (
 	        isArray(pathValue.path) || (
@@ -24811,7 +24826,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var isObject = __webpack_require__(16);
-	
+
 	module.exports = function isJSONEnvelope(envelope) {
 	    return isObject(envelope) && ("json" in envelope);
 	};
@@ -24823,7 +24838,7 @@ module.exports =
 
 	var isArray = Array.isArray;
 	var isObject = __webpack_require__(16);
-	
+
 	module.exports = function isJSONGraphEnvelope(envelope) {
 	    return isObject(envelope) && isArray(envelope.paths) && (
 	        isObject(envelope.jsonGraph) ||
@@ -24863,51 +24878,51 @@ module.exports =
 	var Rx = __webpack_require__(18) && __webpack_require__(111);
 	var Observable = Rx.Observable;
 	var CompositeDisposable = Rx.CompositeDisposable;
-	
+
 	var ModelResponse = __webpack_require__(110);
 	var InvalidSourceError = __webpack_require__(26);
-	
+
 	var pathSyntax = __webpack_require__(68);
-	
+
 	var $ref = __webpack_require__(45);
-	
+
 	function CallResponse(subscribe) {
 	    Observable.call(this, subscribe || subscribeToResponse);
 	}
-	
+
 	CallResponse.create = ModelResponse.create;
-	
+
 	CallResponse.prototype = Object.create(Observable.prototype);
 	CallResponse.prototype.constructor = CallResponse;
-	
+
 	CallResponse.prototype.invokeSourceRequest = function invokeSourceRequest(model) {
 	    return this;
 	};
-	
+
 	CallResponse.prototype.ensureCollect = function ensureCollect(model) {
 	    return this;
 	};
-	
+
 	CallResponse.prototype.initialize = function initializeResponse() {
 	    return this;
 	};
-	
+
 	function toObservable(x) {
 	    return Rx.Observable.defer(function() {
 	        return x;
 	    });
 	}
-	
+
 	function subscribeToResponse(observer) {
-	
+
 	    var args = this.args;
 	    var model = this.model;
-	
+
 	    var callPath = pathSyntax.fromPath(args[0]);
 	    var callArgs = args[1] || [];
 	    var suffixes = (args[2] || []).map(pathSyntax.fromPath);
 	    var extraPaths = (args[3] || []).map(pathSyntax.fromPath);
-	
+
 	    var rootModel = model._clone({
 	        _path: []
 	    });
@@ -24915,7 +24930,7 @@ module.exports =
 	    var boundPath = model._path;
 	    var boundCallPath = boundPath.concat(callPath);
 	    var boundThisPath = boundCallPath.slice(0, -1);
-	
+
 	    var setCallValuesObs = toObservable(
 	            model.withoutDataSource().get(callPath)
 	        )
@@ -24923,7 +24938,7 @@ module.exports =
 	            var curr = data.json;
 	            var depth = -1;
 	            var length = callPath.length;
-	
+
 	            while (curr && ++depth < length) {
 	                curr = curr[callPath[depth]];
 	            }
@@ -24937,9 +24952,9 @@ module.exports =
 	        .defaultIfEmpty(getRemoteCallObs(model._source))
 	        .mergeAll()
 	        .flatMap(setCallEnvelope);
-	
+
 	    var disposables = new CompositeDisposable();
-	
+
 	    disposables.add(setCallValuesObs.subscribe(function(envelope) {
 	            var paths = envelope.paths;
 	            var invalidated = envelope.invalidated;
@@ -24955,18 +24970,18 @@ module.exports =
 	            observer.onError(e);
 	        }
 	    ));
-	
+
 	    return disposables;
-	
+
 	    function getLocalCallObs(tuple) {
-	
+
 	        var localFn = tuple && tuple.localFn;
-	
+
 	        if (typeof localFn === "function") {
-	
+
 	            var localFnModel = tuple.model;
 	            var localThisPath = localFnModel._path;
-	
+
 	            var remoteGetValues = localFn
 	                .apply(localFnModel, callArgs)
 	                .reduce(aggregateFnResults, {
@@ -24977,12 +24992,12 @@ module.exports =
 	                })
 	                .flatMap(setLocalValues)
 	                .flatMap(getRemoteValues);
-	
+
 	            return Observable.return(remoteGetValues);
 	        }
-	
+
 	        return Observable.empty();
-	
+
 	        function aggregateFnResults(results, pathValue) {
 	            if (Boolean(pathValue.invalidated)) {
 	                results.invalidations.push(results.localThisPath.concat(pathValue.path));
@@ -25003,7 +25018,7 @@ module.exports =
 	            }
 	            return results;
 	        }
-	
+
 	        function setLocalValues(results) {
 	            var values = results.values.concat(results.references);
 	            if (values.length > 0) {
@@ -25026,32 +25041,32 @@ module.exports =
 	                });
 	            }
 	        }
-	
+
 	        function getRemoteValues(tuple2) {
-	
+
 	            var envelope = tuple2.envelope;
 	            var results = tuple2.results;
 	            var values = results.values;
 	            var references = results.references;
 	            var invalidations = results.invalidations;
-	
+
 	            var rootValues = values.map(pluckPath).map(prependThisPath);
 	            var rootSuffixes = references.reduce(prependRefToSuffixes, []);
 	            var rootExtraPaths = extraPaths.map(prependThisPath);
 	            var rootPaths = rootSuffixes.concat(rootExtraPaths);
 	            var envelopeObs;
-	
+
 	            if (rootPaths.length > 0) {
 	                envelopeObs = toObservable(rootModel.get.apply(rootModel, rootValues.concat(rootPaths))._toJSONG());
 	            } else {
 	                envelopeObs = Observable.return(envelope);
 	            }
-	
+
 	            return envelopeObs.doAction(function(envelope2) {
 	                envelope2.invalidated = invalidations;
 	            });
 	        }
-	
+
 	        function prependRefToSuffixes(refPaths, refPathValue) {
 	            var refPath = refPathValue.path;
 	            refPaths.push.apply(refPaths, suffixes.map(function(pathSuffix) {
@@ -25059,14 +25074,14 @@ module.exports =
 	            }));
 	            return refPaths;
 	        }
-	
+
 	        function pluckPath(pathValue) {
 	            return pathValue.path;
 	        }
 	    }
-	
+
 	    function getRemoteCallObs(dataSource) {
-	
+
 	        if (dataSource && typeof dataSource === "object") {
 	            return Rx.Observable.defer(function() {
 	                var obs;
@@ -25078,9 +25093,9 @@ module.exports =
 	                return obs;
 	            }).map(invalidateLocalValues);
 	        }
-	
+
 	        return Observable.empty();
-	
+
 	        function invalidateLocalValues(envelope) {
 	            var invalidations = envelope.invalidated;
 	            if (invalidations && invalidations.length) {
@@ -25089,7 +25104,7 @@ module.exports =
 	            return envelope;
 	        }
 	    }
-	
+
 	    function setCallEnvelope(envelope) {
 	        return toObservable(localRoot.set(envelope)).
 	            reduce(function(acc) { return acc; }, null).
@@ -25102,12 +25117,12 @@ module.exports =
 	                };
 	            });
 	    }
-	
+
 	    function prependThisPath(path) {
 	        return boundThisPath.concat(path);
 	    }
 	}
-	
+
 	module.exports = CallResponse;
 
 
@@ -25117,46 +25132,46 @@ module.exports =
 
 	var Rx = __webpack_require__(18);
 	var Disposable = Rx.Disposable;
-	
+
 	var IdempotentResponse = __webpack_require__(131);
-	
+
 	function InvalidateResponse(subscribe) {
 	    IdempotentResponse.call(this, subscribe || subscribeToInvalidateResponse);
 	}
-	
+
 	InvalidateResponse.create = IdempotentResponse.create;
-	
+
 	InvalidateResponse.prototype = Object.create(IdempotentResponse.prototype);
 	InvalidateResponse.prototype.method = "invalidate";
 	InvalidateResponse.prototype.constructor = InvalidateResponse;
-	
+
 	function subscribeToInvalidateResponse(observer) {
-	
+
 	    var model = this.model;
 	    var method = this.method;
-	
+
 	    var groups = this.groups;
 	    var groupIndex = -1;
 	    var groupCount = groups.length;
-	
+
 	    while (++groupIndex < groupCount) {
-	
+
 	        var group = groups[groupIndex];
 	        var inputType = group.inputType;
 	        var methodArgs = group.arguments;
-	
+
 	        if (methodArgs.length > 0) {
 	            var operationName = "_" + method + inputType + "AsJSON";
 	            var operationFunc = model[operationName];
 	            operationFunc(model, methodArgs);
 	        }
 	    }
-	
+
 	    observer.onCompleted();
-	
+
 	    return Disposable.empty;
 	}
-	
+
 	module.exports = InvalidateResponse;
 
 
@@ -25167,14 +25182,14 @@ module.exports =
 	var asap = __webpack_require__(11);
 	var Rx = __webpack_require__(18);
 	var Disposable = Rx.Disposable;
-	
+
 	function ASAPScheduler() {}
-	
+
 	ASAPScheduler.prototype.schedule = function schedule(action) {
 	    asap(action);
 	    return Disposable.empty;
 	};
-	
+
 	ASAPScheduler.prototype.scheduleWithState = function scheduleWithState(state, action) {
 	    var self = this;
 	    asap(function() {
@@ -25182,7 +25197,7 @@ module.exports =
 	    });
 	    return Disposable.empty;
 	};
-	
+
 	module.exports = ASAPScheduler;
 
 
@@ -25192,11 +25207,11 @@ module.exports =
 
 	var Rx = __webpack_require__(18);
 	var Disposable = Rx.Disposable;
-	
+
 	function TimeoutScheduler(delay) {
 	    this.delay = delay;
 	}
-	
+
 	TimeoutScheduler.prototype.schedule = function schedule(action) {
 	    var id = setTimeout(action, this.delay);
 	    return Disposable.create(function() {
@@ -25206,7 +25221,7 @@ module.exports =
 	        }
 	    });
 	};
-	
+
 	TimeoutScheduler.prototype.scheduleWithState = function scheduleWithState(state, action) {
 	    var self = this;
 	    var id = setTimeout(function() {
@@ -25219,7 +25234,7 @@ module.exports =
 	        }
 	    });
 	};
-	
+
 	module.exports = TimeoutScheduler;
 
 
@@ -25235,11 +25250,11 @@ module.exports =
 	var __version = __webpack_require__(42);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	var $ref = __webpack_require__(45);
-	
+
 	var getBoundValue = __webpack_require__(92);
-	
+
 	var isArray = Array.isArray;
 	var promote = __webpack_require__(46);
 	var hasOwn = __webpack_require__(15);
@@ -25250,7 +25265,7 @@ module.exports =
 	var expireNode = __webpack_require__(56);
 	var incrementVersion = __webpack_require__(59);
 	var mergeValueOrInsertBranch = __webpack_require__(102);
-	
+
 	/**
 	 * Sets a list of PathMaps into a JSON Graph.
 	 * @function
@@ -25258,9 +25273,9 @@ module.exports =
 	 * @param {Array.<PathMapEnvelope>} pathMapEnvelopes - the a list of @PathMapEnvelopes to set.
 	 * @return {Array.<Path>} - a list of optimized paths for the successfully set values.
 	 */
-	
+
 	module.exports = function setPathMaps(model, pathMapEnvelopes, x, errorSelector, comparator) {
-	
+
 	    var modelRoot = model._root;
 	    var lru = modelRoot;
 	    var expired = modelRoot.expired;
@@ -25270,67 +25285,67 @@ module.exports =
 	    var node = bound.length ? getBoundValue(model, bound).value : cache;
 	    var parent = node[__parent] || cache;
 	    var initialVersion = cache[__version];
-	
+
 	    var requestedPath = [];
 	    var requestedPaths = [];
 	    var optimizedPaths = [];
 	    var optimizedIndex = bound.length;
 	    var pathMapIndex = -1;
 	    var pathMapCount = pathMapEnvelopes.length;
-	
+
 	    while (++pathMapIndex < pathMapCount) {
-	
+
 	        var pathMapEnvelope = pathMapEnvelopes[pathMapIndex];
 	        var optimizedPath = bound.slice(0);
 	        optimizedPath.index = optimizedIndex;
-	
+
 	        setPathMap(
 	            pathMapEnvelope.json, 0, cache, parent, node,
 	            requestedPaths, optimizedPaths, requestedPath, optimizedPath,
 	            version, expired, lru, comparator, errorSelector
 	        );
 	    }
-	
+
 	    var newVersion = cache[__version];
 	    var rootChangeHandler = modelRoot.onChange;
-	
+
 	    if (isFunction(rootChangeHandler) && initialVersion !== newVersion) {
 	        rootChangeHandler();
 	    }
-	
+
 	    return [requestedPaths, optimizedPaths];
 	};
-	
+
 	/* eslint-disable no-constant-condition */
 	function setPathMap(
 	    pathMap, depth, root, parent, node,
 	    requestedPaths, optimizedPaths, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var keys = getKeys(pathMap);
-	
+
 	    if (keys && keys.length) {
-	
+
 	        var keyIndex = 0;
 	        var keyCount = keys.length;
 	        var optimizedIndex = optimizedPath.index;
-	
+
 	        do {
 	            var key = keys[keyIndex];
 	            var child = pathMap[key];
 	            var branch = isObject(child) && !child.$type;
-	
+
 	            requestedPath.depth = depth;
-	
+
 	            var results = setNode(
 	                root, parent, node, key, child,
 	                branch, false, requestedPath, optimizedPath,
 	                version, expired, lru, comparator, errorSelector
 	            );
-	
+
 	            requestedPath[depth] = key;
 	            requestedPath.index = depth;
-	
+
 	            optimizedPath[optimizedPath.index++] = key;
 	            var nextNode = results[0];
 	            var nextParent = results[1];
@@ -25356,38 +25371,38 @@ module.exports =
 	    }
 	}
 	/* eslint-enable */
-	
+
 	function setReference(
 	    value, root, node, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var reference = node.value;
 	    optimizedPath.splice(0, optimizedPath.length);
 	    optimizedPath.push.apply(optimizedPath, reference);
-	
+
 	    if (isExpired(node)) {
 	        optimizedPath.index = reference.length;
 	        expireNode(node, expired, lru);
 	        return [undefined, root];
 	    }
-	
+
 	    promote(lru, node);
-	
+
 	    var container = node;
 	    var parent = root;
-	
+
 	    node = node[__context];
-	
+
 	    if (node != null) {
 	        parent = node[__parent] || root;
 	        optimizedPath.index = reference.length;
 	    } else {
-	
+
 	        var index = 0;
 	        var count = reference.length - 1;
-	
+
 	        parent = node = root;
-	
+
 	        do {
 	            var key = reference[index];
 	            var branch = index < count;
@@ -25403,9 +25418,9 @@ module.exports =
 	            }
 	            parent = results[1];
 	        } while (index++ < count);
-	
+
 	        optimizedPath.index = index;
-	
+
 	        if (container[__context] !== node) {
 	            var backRefs = node[__refsLength] || 0;
 	            node[__refsLength] = backRefs + 1;
@@ -25414,37 +25429,37 @@ module.exports =
 	            container[__refIndex] = backRefs;
 	        }
 	    }
-	
+
 	    return [node, parent];
 	}
-	
+
 	function setNode(
 	    root, parent, node, key, value,
 	    branch, reference, requestedPath, optimizedPath,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var type = node.$type;
-	
+
 	    while (type === $ref) {
-	
+
 	        var results = setReference(
 	            value, root, node, requestedPath, optimizedPath,
 	            version, expired, lru, comparator, errorSelector);
-	
+
 	        node = results[0];
-	
+
 	        if (isPrimitive(node)) {
 	            return results;
 	        }
-	
+
 	        parent = results[1];
 	        type = node && node.$type;
 	    }
-	
+
 	    if (type !== void 0) {
 	        return [node, parent];
 	    }
-	
+
 	    if (key == null) {
 	        if (branch) {
 	            throw new Error("`null` is not allowed in branch key positions.");
@@ -25455,18 +25470,18 @@ module.exports =
 	        parent = node;
 	        node = parent[key];
 	    }
-	
+
 	    node = mergeValueOrInsertBranch(
 	        parent, node, key, value,
 	        branch, reference, requestedPath, optimizedPath,
 	        version, expired, lru, comparator, errorSelector
 	    );
-	
+
 	    return [node, parent];
 	}
-	
+
 	function getKeys(pathMap) {
-	
+
 	    if (isObject(pathMap) && !pathMap.$type) {
 	        var keys = [];
 	        var itr = 0;
@@ -25481,7 +25496,7 @@ module.exports =
 	        }
 	        return keys;
 	    }
-	
+
 	    return void 0;
 	}
 
@@ -25495,7 +25510,7 @@ module.exports =
 	var isJSONGraphEnvelope = __webpack_require__(135);
 	var isJSONEnvelope = __webpack_require__(134);
 	var pathSyntax = __webpack_require__(68);
-	
+
 	/**
 	 *
 	 * @param {Object} allowedInput - allowedInput is a map of input styles
@@ -25506,40 +25521,40 @@ module.exports =
 	    for (var i = 0, len = args.length; i < len; ++i) {
 	        var arg = args[i];
 	        var valid = false;
-	
+
 	        // Path
 	        if (isArray(arg) && allowedInput.path) {
 	            valid = true;
 	        }
-	
+
 	        // Path Syntax
 	        else if (typeof arg === "string" && allowedInput.pathSyntax) {
 	            valid = true;
 	        }
-	
+
 	        // Path Value
 	        else if (isPathValue(arg) && allowedInput.pathValue) {
 	            arg.path = pathSyntax.fromPath(arg.path);
 	            valid = true;
 	        }
-	
+
 	        // jsonGraph {jsonGraph: { ... }, paths: [ ... ]}
 	        else if (isJSONGraphEnvelope(arg) && allowedInput.jsonGraph) {
 	            valid = true;
 	        }
-	
+
 	        // json env {json: {...}}
 	        else if (isJSONEnvelope(arg) && allowedInput.json) {
 	            valid = true;
 	        }
-	
+
 	        // selector functions
 	        else if (typeof arg === "function" &&
 	                 i + 1 === len &&
 	                 allowedInput.selector) {
 	            valid = true;
 	        }
-	
+
 	        if (!valid) {
 	            return new Error("Unrecognized argument " + (typeof arg) + " [" + String(arg) + "] " + "to Model#" + method + "");
 	        }
@@ -25554,39 +25569,39 @@ module.exports =
 
 	var $modelCreated = __webpack_require__(78);
 	var isInternalKey = __webpack_require__(144);
-	
+
 	/**
 	 * decends and copies the cache.
 	 */
 	module.exports = function getCache(cache) {
 	    var out = {};
 	    _copyCache(cache, out);
-	
+
 	    return out;
 	};
-	
+
 	function cloneBoxedValue(boxedValue) {
 	    var clonedValue = {};
-	
+
 	    var keys = Object.keys(boxedValue);
 	    var key;
 	    var i;
 	    var l;
-	
+
 	    for (i = 0, l = keys.length; i < l; i++) {
 	        key = keys[i];
-	
+
 	        if (!isInternalKey(key)) {
 	            clonedValue[key] = boxedValue[key];
 	        }
 	    }
-	
+
 	    return clonedValue;
 	}
-	
+
 	function _copyCache(node, out, fromKey) {
 	    // copy and return
-	
+
 	    Object.
 	        keys(node).
 	        filter(function(k) {
@@ -25601,11 +25616,11 @@ module.exports =
 	        forEach(function(key) {
 	            var cacheNext = node[key];
 	            var outNext = out[key];
-	
+
 	            if (!outNext) {
 	                outNext = out[key] = {};
 	            }
-	
+
 	            // Paste the node into the out cache.
 	            if (cacheNext.$type) {
 	                var isObject = cacheNext.value && typeof cacheNext.value === "object";
@@ -25616,11 +25631,11 @@ module.exports =
 	                } else {
 	                    value = cacheNext.value;
 	                }
-	
+
 	                out[key] = value;
 	                return;
 	            }
-	
+
 	            _copyCache(cacheNext, outNext, key);
 	        });
 	}
@@ -25631,7 +25646,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var prefix = __webpack_require__(39);
-	
+
 	/**
 	 * Determined if the key passed in is an internal key.
 	 *
@@ -25663,7 +25678,7 @@ module.exports =
 	var GET_VALID_INPUT = __webpack_require__(145);
 	var validateInput = __webpack_require__(142);
 	var GetResponse = __webpack_require__(115);
-	
+
 	/**
 	 * Performs a get on the cache and if there are missing paths
 	 * then the request will be forwarded to the get request cycle.
@@ -25678,7 +25693,7 @@ module.exports =
 	            o.onError(out);
 	        });
 	    }
-	
+
 	    var paths = pathSyntax.fromPathsOrPathValues(arguments);
 	    return new GetResponse(this, paths);
 	};
@@ -25689,7 +25704,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var GetResponse = __webpack_require__(115);
-	
+
 	/**
 	 * Performs a get on the cache and if there are missing paths
 	 * then the request will be forwarded to the get request cycle.
@@ -25706,24 +25721,24 @@ module.exports =
 
 	var Rx = __webpack_require__(18);
 	var pathSyntax = __webpack_require__(68);
-	
+
 	module.exports = function deref(boundPathArg) {
-	
+
 	    var model = this;
 	    var pathsIndex = -1;
 	    var pathsCount = arguments.length - 1;
 	    var paths = new Array(pathsCount);
-	
+
 	    var boundPath = pathSyntax.fromPath(boundPathArg);
-	
+
 	    while (++pathsIndex < pathsCount) {
 	        paths[pathsIndex] = pathSyntax.fromPath(arguments[pathsIndex + 1]);
 	    }
-	
+
 	    if (pathsCount === 0) {
 	        throw new Error("Model#deref requires at least one value path.");
 	    }
-	
+
 	    return Rx.Observable.defer(function() {
 	        return derefSync(model, boundPath);
 	    }).
@@ -25731,7 +25746,7 @@ module.exports =
 	        if (Boolean(boundModel)) {
 	            if (pathsCount > 0) {
 	                var ofBoundModel = Rx.Observable.of(boundModel);
-	
+
 	                return boundModel.get.
 	                    apply(boundModel, paths).
 	                    catch(ofBoundModel).
@@ -25743,25 +25758,25 @@ module.exports =
 	            var modifiedPaths = paths.map(function(path) {
 	                return boundPath.concat(path);
 	            });
-	
+
 	            // Fill the cache with the request.
 	            return model.
 	                get.apply(model, modifiedPaths).
-	
+
 	                // We concat the deref sync operation afterwords.
 	                // Any errors will be forwarded onto the caller.
 	                concat(Rx.Observable.defer(function() {
 	                    return derefSync(model, boundPath);
 	                })).
 	                last().
-	
+
 	                // 'x' has to exist.  Cannot be falsy.  Must be model.
 	                filter(function(x) { return x; });
 	        }
 	        return Rx.Observable.empty();
 	    });
 	};
-	
+
 	function derefSync(model, boundPath) {
 	    var value;
 	    var errorHappened = false;
@@ -25786,7 +25801,7 @@ module.exports =
 
 	var ModelResponse = __webpack_require__(110);
 	var pathSyntax = __webpack_require__(68);
-	
+
 	module.exports = function getValue(path) {
 	    var parsedPath = pathSyntax.fromPath(path);
 	    var pathIdx = 0;
@@ -25800,14 +25815,14 @@ module.exports =
 	            /* eslint-enable no-loop-func */
 	        }
 	    }
-	
+
 	    var self = this;
 	    return new ModelResponse(function(obs) {
 	        return self.get(parsedPath).subscribe(function(data) {
 	            var curr = data.json;
 	            var depth = -1;
 	            var length = parsedPath.length;
-	
+
 	            while (curr && ++depth < length) {
 	                curr = curr[parsedPath[depth]];
 	            }
@@ -25828,7 +25843,7 @@ module.exports =
 	var jsong = __webpack_require__(67);
 	var ModelResponse = __webpack_require__(110);
 	var isPathValue = __webpack_require__(133);
-	
+
 	module.exports = function setValue(pathArg, valueArg) {
 	    var value = isPathValue(pathArg) ? pathArg : jsong.pathValue(pathArg, valueArg);
 	    var pathIdx = 0;
@@ -25849,7 +25864,7 @@ module.exports =
 	            var curr = data.json;
 	            var depth = -1;
 	            var length = path.length;
-	
+
 	            while (curr && ++depth < length) {
 	                curr = curr[path[depth]];
 	            }
@@ -25868,7 +25883,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var pathSyntax = __webpack_require__(68);
-	
+
 	module.exports = function getValueSync(pathArg) {
 	    var path = pathSyntax.fromPath(pathArg);
 	    if (Array.isArray(path) === false) {
@@ -25888,14 +25903,14 @@ module.exports =
 	var pathSyntax = __webpack_require__(68);
 	var isPathValue = __webpack_require__(133);
 	var setPathValues = __webpack_require__(91);
-	
+
 	module.exports = function setValueSync(pathArg, valueArg, errorSelectorArg, comparatorArg) {
-	
+
 	    var path = pathSyntax.fromPath(pathArg);
 	    var value = valueArg;
 	    var errorSelector = errorSelectorArg;
 	    var comparator = comparatorArg;
-	
+
 	    if (isPathValue(path)) {
 	        comparator = errorSelector;
 	        errorSelector = value;
@@ -25906,19 +25921,19 @@ module.exports =
 	            value: value
 	        };
 	    }
-	
+
 	    if (isPathValue(value) === false) {
 	        throw new Error("Model#setValueSync must be called with an Array path.");
 	    }
-	
+
 	    if (typeof errorSelector !== "function") {
 	        errorSelector = this._root._errorSelector;
 	    }
-	
+
 	    if (typeof comparator !== "function") {
 	        comparator = this._root._comparator;
 	    }
-	
+
 	    if (this._syncCheck("setValueSync")) {
 	        setPathValues(this, [value]);
 	        return this._getValueSync(this, value.path).value;
@@ -25934,32 +25949,32 @@ module.exports =
 	var getBoundValue = __webpack_require__(92);
 	var InvalidModelError = __webpack_require__(101);
 	var $atom = __webpack_require__(99);
-	
+
 	module.exports = function derefSync(boundPathArg) {
-	
+
 	    var boundPath = pathSyntax.fromPath(boundPathArg);
-	
+
 	    if (!Array.isArray(boundPath)) {
 	        throw new Error("Model#derefSync must be called with an Array path.");
 	    }
-	
+
 	    var boundValue = getBoundValue(this, this._path.concat(boundPath), false);
-	
+
 	    var path = boundValue.path;
 	    var node = boundValue.value;
 	    var found = boundValue.found;
-	
+
 	    // If the node is not found or the node is found but undefined is returned,
 	    // this happens when a reference is expired.
 	    if (!found || node === undefined ||
 	        node.$type === $atom && node.value === undefined) {
 	        return undefined;
 	    }
-	
+
 	    if (node.$type) {
 	        throw new InvalidModelError();
 	    }
-	
+
 	    return this._clone({ _path: path });
 	};
 
@@ -25969,7 +25984,7 @@ module.exports =
 /***/ function(module, exports, __webpack_require__) {
 
 	var __version = __webpack_require__(42);
-	
+
 	module.exports = function _getVersion(model, path) {
 	    // ultra fast clone for boxed values.
 	    var gen = model._getValueSync({
@@ -25993,11 +26008,11 @@ module.exports =
 	var __version = __webpack_require__(42);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	var $ref = __webpack_require__(45);
-	
+
 	var getBoundValue = __webpack_require__(92);
-	
+
 	var promote = __webpack_require__(46);
 	var getSize = __webpack_require__(63);
 	var isExpired = __webpack_require__(65);
@@ -26008,16 +26023,16 @@ module.exports =
 	var incrementVersion = __webpack_require__(59);
 	var updateNodeAncestors = __webpack_require__(88);
 	var removeNodeAndDescendants = __webpack_require__(84);
-	
+
 	/**
 	 * Invalidates a list of Paths in a JSON Graph.
 	 * @function
 	 * @param {Object} model - the Model for which to insert the PathValues.
 	 * @param {Array.<PathValue>} paths - the PathValues to set.
 	 */
-	
+
 	module.exports = function invalidatePathSets(model, paths) {
-	
+
 	    var modelRoot = model._root;
 	    var lru = modelRoot;
 	    var expired = modelRoot.expired;
@@ -26027,37 +26042,37 @@ module.exports =
 	    var node = bound.length ? getBoundValue(model, bound).value : cache;
 	    var parent = node[__parent] || cache;
 	    var initialVersion = cache[__version];
-	
+
 	    var pathIndex = -1;
 	    var pathCount = paths.length;
-	
+
 	    while (++pathIndex < pathCount) {
-	
+
 	        var path = paths[pathIndex];
-	
+
 	        invalidatePathSet(
 	            path, 0, cache, parent, node,
 	            version, expired, lru
 	        );
 	    }
-	
+
 	    var newVersion = cache[__version];
 	    var rootChangeHandler = modelRoot.onChange;
-	
+
 	    if (isFunction(rootChangeHandler) && initialVersion !== newVersion) {
 	        rootChangeHandler();
 	    }
 	};
-	
+
 	function invalidatePathSet(
 	    path, depth, root, parent, node,
 	    version, expired, lru) {
-	
+
 	    var note = {};
 	    var branch = depth < path.length - 1;
 	    var keySet = path[depth];
 	    var key = iterateKeySet(keySet, note);
-	
+
 	    do {
 	        var results = invalidateNode(
 	            root, parent, node,
@@ -26080,31 +26095,31 @@ module.exports =
 	        key = iterateKeySet(keySet, note);
 	    } while (!note.done);
 	}
-	
+
 	function invalidateReference(root, node, version, expired, lru) {
-	
+
 	    if (isExpired(node)) {
 	        expireNode(node, expired, lru);
 	        return [undefined, root];
 	    }
-	
+
 	    promote(lru, node);
-	
+
 	    var container = node;
 	    var reference = node.value;
 	    var parent = root;
-	
+
 	    node = node[__context];
-	
+
 	    if (node != null) {
 	        parent = node[__parent] || root;
 	    } else {
-	
+
 	        var index = 0;
 	        var count = reference.length - 1;
-	
+
 	        parent = node = root;
-	
+
 	        do {
 	            var key = reference[index];
 	            var branch = index < count;
@@ -26119,7 +26134,7 @@ module.exports =
 	            }
 	            parent = results[1];
 	        } while (index++ < count);
-	
+
 	        if (container[__context] !== node) {
 	            var backRefs = node[__refsLength] || 0;
 	            node[__refsLength] = backRefs + 1;
@@ -26128,35 +26143,35 @@ module.exports =
 	            container[__refIndex] = backRefs;
 	        }
 	    }
-	
+
 	    return [node, parent];
 	}
-	
+
 	function invalidateNode(
 	    root, parent, node,
 	    key, branch, reference,
 	    version, expired, lru) {
-	
+
 	    var type = node.$type;
-	
+
 	    while (type === $ref) {
-	
+
 	        var results = invalidateReference(root, node, version, expired, lru);
-	
+
 	        node = results[0];
-	
+
 	        if (isPrimitive(node)) {
 	            return results;
 	        }
-	
+
 	        parent = results[1];
 	        type = node.$type;
 	    }
-	
+
 	    if (type !== void 0) {
 	        return [node, parent];
 	    }
-	
+
 	    if (key == null) {
 	        if (branch) {
 	            throw new Error("`null` is not allowed in branch key positions.");
@@ -26167,7 +26182,7 @@ module.exports =
 	        parent = node;
 	        node = parent[key];
 	    }
-	
+
 	    return [node, parent];
 	}
 
@@ -26184,11 +26199,11 @@ module.exports =
 	var __version = __webpack_require__(42);
 	var __refIndex = __webpack_require__(43);
 	var __refsLength = __webpack_require__(44);
-	
+
 	var $ref = __webpack_require__(45);
-	
+
 	var getBoundValue = __webpack_require__(92);
-	
+
 	var promote = __webpack_require__(46);
 	var getSize = __webpack_require__(63);
 	var hasOwn = __webpack_require__(15);
@@ -26200,16 +26215,16 @@ module.exports =
 	var incrementVersion = __webpack_require__(59);
 	var updateNodeAncestors = __webpack_require__(88);
 	var removeNodeAndDescendants = __webpack_require__(84);
-	
+
 	/**
 	 * Sets a list of PathMaps into a JSON Graph.
 	 * @function
 	 * @param {Object} model - the Model for which to insert the PathMaps.
 	 * @param {Array.<PathMapEnvelope>} pathMapEnvelopes - the a list of @PathMapEnvelopes to set.
 	 */
-	
+
 	module.exports = function invalidatePathMaps(model, pathMapEnvelopes) {
-	
+
 	    var modelRoot = model._root;
 	    var lru = modelRoot;
 	    var expired = modelRoot.expired;
@@ -26221,34 +26236,34 @@ module.exports =
 	    var node = bound.length ? getBoundValue(model, bound).value : cache;
 	    var parent = node[__parent] || cache;
 	    var initialVersion = cache[__version];
-	
+
 	    var pathMapIndex = -1;
 	    var pathMapCount = pathMapEnvelopes.length;
-	
+
 	    while (++pathMapIndex < pathMapCount) {
-	
+
 	        var pathMapEnvelope = pathMapEnvelopes[pathMapIndex];
-	
+
 	        invalidatePathMap(
 	            pathMapEnvelope.json, 0, cache, parent, node,
 	            version, expired, lru, comparator, errorSelector
 	        );
 	    }
-	
+
 	    var newVersion = cache[__version];
 	    var rootChangeHandler = modelRoot.onChange;
-	
+
 	    if (isFunction(rootChangeHandler) && initialVersion !== newVersion) {
 	        rootChangeHandler();
 	    }
 	};
-	
+
 	function invalidatePathMap(pathMap, depth, root, parent, node, version, expired, lru, comparator, errorSelector) {
-	
+
 	    if (isPrimitive(pathMap) || pathMap.$type) {
 	        return;
 	    }
-	
+
 	    for (var key in pathMap) {
 	        if (key[0] !== __prefix && key[0] !== "$" && hasOwn(pathMap, key)) {
 	            var child = pathMap[key];
@@ -26274,31 +26289,31 @@ module.exports =
 	        }
 	    }
 	}
-	
+
 	function invalidateReference(value, root, node, version, expired, lru, comparator, errorSelector) {
-	
+
 	    if (isExpired(node)) {
 	        expireNode(node, expired, lru);
 	        return [undefined, root];
 	    }
-	
+
 	    promote(lru, node);
-	
+
 	    var container = node;
 	    var reference = node.value;
 	    var parent = root;
-	
+
 	    node = node[__context];
-	
+
 	    if (node != null) {
 	        parent = node[__parent] || root;
 	    } else {
-	
+
 	        var index = 0;
 	        var count = reference.length - 1;
-	
+
 	        parent = node = root;
-	
+
 	        do {
 	            var key = reference[index];
 	            var branch = index < count;
@@ -26313,7 +26328,7 @@ module.exports =
 	            }
 	            parent = results[1];
 	        } while (index++ < count);
-	
+
 	        if (container[__context] !== node) {
 	            var backRefs = node[__refsLength] || 0;
 	            node[__refsLength] = backRefs + 1;
@@ -26322,35 +26337,35 @@ module.exports =
 	            container[__refIndex] = backRefs;
 	        }
 	    }
-	
+
 	    return [node, parent];
 	}
-	
+
 	function invalidateNode(
 	    root, parent, node,
 	    key, value, branch, reference,
 	    version, expired, lru, comparator, errorSelector) {
-	
+
 	    var type = node.$type;
-	
+
 	    while (type === $ref) {
-	
+
 	        var results = invalidateReference(value, root, node, version, expired, lru, comparator, errorSelector);
-	
+
 	        node = results[0];
-	
+
 	        if (isPrimitive(node)) {
 	            return results;
 	        }
-	
+
 	        parent = results[1];
 	        type = node && node.$type;
 	    }
-	
+
 	    if (type !== void 0) {
 	        return [node, parent];
 	    }
-	
+
 	    if (key == null) {
 	        if (branch) {
 	            throw new Error("`null` is not allowed in branch key positions.");
@@ -26361,7 +26376,7 @@ module.exports =
 	        parent = node;
 	        node = parent[key];
 	    }
-	
+
 	    return [node, parent];
 	}
 
@@ -26374,7 +26389,7 @@ module.exports =
 	var request = __webpack_require__(158);
 	var buildQueryObject = __webpack_require__(161);
 	var isArray = Array.isArray;
-	
+
 	function simpleExtend(obj, obj2) {
 	  var prop;
 	  for (prop in obj2) {
@@ -26382,7 +26397,7 @@ module.exports =
 	  }
 	  return obj;
 	}
-	
+
 	function XMLHttpSource(jsongUrl, config) {
 	  this._jsongUrl = jsongUrl;
 	  if (typeof config === 'number') {
@@ -26396,7 +26411,7 @@ module.exports =
 	    headers: {}
 	  }, config || {});
 	}
-	
+
 	XMLHttpSource.prototype = {
 	  // because javascript
 	  constructor: XMLHttpSource,
@@ -26404,7 +26419,7 @@ module.exports =
 	   * buildQueryObject helper
 	   */
 	  buildQueryObject: buildQueryObject,
-	
+
 	  /**
 	   * @inheritDoc DataSource#get
 	   */
@@ -26419,7 +26434,7 @@ module.exports =
 	    var context = this;
 	    return request(method, config, context);
 	  },
-	
+
 	  /**
 	   * @inheritDoc DataSource#set
 	   */
@@ -26435,9 +26450,9 @@ module.exports =
 	    // pass context for onBeforeRequest callback
 	    var context = this;
 	    return request(method, config, context);
-	
+
 	  },
-	
+
 	  /**
 	   * @inheritDoc DataSource#call
 	   */
@@ -26446,7 +26461,7 @@ module.exports =
 	    args = args || [];
 	    pathSuffix = pathSuffix || [];
 	    paths = paths || [];
-	
+
 	    var method = 'POST';
 	    var queryData = [];
 	    queryData.push('method=call');
@@ -26454,7 +26469,7 @@ module.exports =
 	    queryData.push('arguments=' + encodeURIComponent(JSON.stringify(args)));
 	    queryData.push('pathSuffixes=' + encodeURIComponent(JSON.stringify(pathSuffix)));
 	    queryData.push('paths=' + encodeURIComponent(JSON.stringify(paths)));
-	
+
 	    var queryObject = this.buildQueryObject(this._jsongUrl, method, queryData.join('&'));
 	    var config = simpleExtend(queryObject, this._config);
 	    config.headers["Content-Type"] = "application/x-www-form-urlencoded";
@@ -26479,19 +26494,19 @@ module.exports =
 	var getXMLHttpRequest = __webpack_require__(159);
 	var getCORSRequest = __webpack_require__(160);
 	var hasOwnProp = Object.prototype.hasOwnProperty;
-	
+
 	var noop = function() {};
-	
+
 	function Observable() {}
-	
+
 	Observable.create = function(subscribe) {
 	  var o = new Observable();
-	
+
 	  o.subscribe = function(onNext, onError, onCompleted) {
-	
+
 	    var observer;
 	    var disposable;
-	
+
 	    if (typeof onNext === 'function') {
 	        observer = {
 	            onNext: onNext,
@@ -26501,9 +26516,9 @@ module.exports =
 	    } else {
 	        observer = onNext;
 	    }
-	
+
 	    disposable = subscribe(observer);
-	
+
 	    if (typeof disposable === 'function') {
 	      return {
 	        dispose: disposable
@@ -26512,13 +26527,13 @@ module.exports =
 	      return disposable;
 	    }
 	  };
-	
+
 	  return o;
 	};
-	
+
 	function request(method, options, context) {
 	  return Observable.create(function requestObserver(observer) {
-	
+
 	    var config = {
 	      method: method || 'GET',
 	      crossDomain: false,
@@ -26526,29 +26541,29 @@ module.exports =
 	      headers: {},
 	      responseType: 'json'
 	    };
-	
+
 	    var xhr,
 	      isDone,
 	      headers,
 	      header,
 	      prop;
-	
+
 	    for (prop in options) {
 	      if (hasOwnProp.call(options, prop)) {
 	        config[prop] = options[prop];
 	      }
 	    }
-	
+
 	    // Add request with Headers
 	    if (!config.crossDomain && !config.headers['X-Requested-With']) {
 	      config.headers['X-Requested-With'] = 'XMLHttpRequest';
 	    }
-	
+
 	    // allow the user to mutate the config open
 	    if (context.onBeforeRequest != null) {
 	      context.onBeforeRequest(config);
 	    }
-	
+
 	    // create xhr
 	    try {
 	      xhr = config.crossDomain ? getCORSRequest() : getXMLHttpRequest();
@@ -26562,13 +26577,13 @@ module.exports =
 	      } else {
 	        xhr.open(config.method, config.url, config.async);
 	      }
-	
+
 	      // Sets timeout information
 	      xhr.timeout = config.timeout;
-	
+
 	      // Anything but explicit false results in true.
 	      xhr.withCredentials = config.withCredentials !== false;
-	
+
 	      // Fills the request headers
 	      headers = config.headers;
 	      for (header in headers) {
@@ -26576,7 +26591,7 @@ module.exports =
 	          xhr.setRequestHeader(header, headers[header]);
 	        }
 	      }
-	
+
 	      if (config.responseType) {
 	        try {
 	          xhr.responseType = config.responseType;
@@ -26593,7 +26608,7 @@ module.exports =
 	          }
 	        }
 	      }
-	
+
 	      xhr.onreadystatechange = function onreadystatechange(e) {
 	        // Complete
 	        if (xhr.readyState === 4) {
@@ -26603,7 +26618,7 @@ module.exports =
 	          }
 	        }
 	      };
-	
+
 	      // Timeout
 	      xhr.ontimeout = function ontimeout(e) {
 	        if (!isDone) {
@@ -26611,10 +26626,10 @@ module.exports =
 	          onXhrError(observer, xhr, 'timeout error', e);
 	        }
 	      };
-	
+
 	      // Send Request
 	      xhr.send(config.data);
-	
+
 	    } catch (e) {
 	      observer.onError(e);
 	    }
@@ -26628,7 +26643,7 @@ module.exports =
 	    };//Dispose
 	  });
 	}
-	
+
 	/*
 	 * General handling of ultimate failure (after appropriate retries)
 	 */
@@ -26637,25 +26652,25 @@ module.exports =
 	  if (!errorThrown) {
 	    errorThrown = new Error(textStatus);
 	  }
-	
+
 	  observer.onError(errorThrown);
 	}
-	
+
 	function onXhrLoad(observer, xhr, e) {
 	  var responseData,
 	    responseObject,
 	    responseType;
-	
+
 	  // If there's no observer, the request has been (or is being) cancelled.
 	  if (xhr && observer) {
 	    responseType = xhr.responseType;
 	    // responseText is the old-school way of retrieving response (supported by IE8 & 9)
 	    // response/responseType properties were introduced in XHR Level2 spec (supported by IE10)
 	    responseData = ('response' in xhr) ? xhr.response : xhr.responseText;
-	
+
 	    // normalize IE9 bug (http://bugs.jquery.com/ticket/1450)
 	    var status = (xhr.status === 1223) ? 204 : xhr.status;
-	
+
 	    if (status >= 200 && status <= 399) {
 	      try {
 	        if (responseType !== 'json') {
@@ -26670,31 +26685,31 @@ module.exports =
 	      observer.onNext(responseData);
 	      observer.onCompleted();
 	      return;
-	
+
 	    } else if (status === 401 || status === 403 || status === 407) {
-	
+
 	      return _handleXhrError(observer, responseData);
-	
+
 	    } else if (status === 410) {
 	      // TODO: Retry ?
 	      return _handleXhrError(observer, responseData);
-	
+
 	    } else if (status === 408 || status === 504) {
 	      // TODO: Retry ?
 	      return _handleXhrError(observer, responseData);
-	
+
 	    } else {
-	
+
 	      return _handleXhrError(observer, responseData || ('Response code ' + status));
-	
+
 	    }//if
 	  }//if
 	}//onXhrLoad
-	
+
 	function onXhrError(observer, xhr, status, e) {
 	  _handleXhrError(observer, status || xhr.statusText || 'request error', e);
 	}
-	
+
 	module.exports = request;
 
 
@@ -26726,7 +26741,7 @@ module.exports =
 	    }
 	  }
 	};
-	
+
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
@@ -26745,7 +26760,7 @@ module.exports =
 	        throw new Error('CORS is not supported by your browser');
 	    }
 	};
-	
+
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
@@ -26759,24 +26774,24 @@ module.exports =
 	  var data = {url: url};
 	  var isQueryParamUrl = url.indexOf('?') !== -1;
 	  var startUrl = (isQueryParamUrl) ? '&' : '?';
-	
+
 	  if (typeof queryData === 'string') {
 	    qData.push(queryData);
 	  } else {
-	
+
 	    keys = Object.keys(queryData);
 	    keys.forEach(function (k) {
 	      var value = (typeof queryData[k] === 'object') ? JSON.stringify(queryData[k]) : queryData[k];
 	      qData.push(k + '=' + value);
 	    });
 	  }
-	
+
 	  if (method === 'GET') {
 	    data.url += startUrl + qData.join('&');
 	  } else {
 	    data.data = qData.join('&');
 	  }
-	
+
 	  return data;
 	};
 
@@ -26786,7 +26801,7 @@ module.exports =
 /***/ function(module, exports) {
 
 	'use strict';
-	
+
 	exports.__esModule = true;
 	exports.default = expandCache;
 	function expandCache(cache) {
@@ -26795,26 +26810,26 @@ module.exports =
 	      if (acc && acc[part]) {
 	        return acc[part];
 	      }
-	
+
 	      return undefined;
 	    }, cache);
 	  }
-	
+
 	  function expandChild(child) {
 	    if (child.$type === 'atom') return child.value;
 	    if (child.$type === 'ref') return createNode(followPath(child.value));
 	    if (child.$type === 'error') return new Error(child.value);
 	    // Unknown Sentinel
 	    if (child.$type) return undefined;
-	
+
 	    return createNode(child);
 	  }
-	
+
 	  function createNode(data) {
 	    if (data.$type) return expandChild(data);
 	    var node = {};
 	    var nodeCache = {};
-	
+
 	    Object.keys(data).forEach(function (key) {
 	      Object.defineProperty(node, key, {
 	        enumerable: true,
@@ -26822,16 +26837,16 @@ module.exports =
 	          if (key in nodeCache) {
 	            return nodeCache[key];
 	          }
-	
+
 	          nodeCache[key] = expandChild(data[key]);
 	          return nodeCache[key];
 	        }
 	      });
 	    });
-	
+
 	    return node;
 	  }
-	
+
 	  return createNode(cache);
 	}
 
@@ -26859,7 +26874,7 @@ module.exports =
 	  }
 	}(this, function(undefined) {
 	  'use strict';
-	
+
 	  var $scope, conflict, conflictResolution = [];
 	  if (typeof global === 'object' && global) {
 	    $scope = global;
@@ -26878,7 +26893,7 @@ module.exports =
 	        }
 	      });
 	  }
-	
+
 	  // nodejs compatible on server side and in the browser.
 	  function inherits(ctor, superCtor) {
 	    ctor.super_ = superCtor;
@@ -26891,7 +26906,7 @@ module.exports =
 	      }
 	    });
 	  }
-	
+
 	  function Diff(kind, path) {
 	    Object.defineProperty(this, 'kind', {
 	      value: kind,
@@ -26904,7 +26919,7 @@ module.exports =
 	      });
 	    }
 	  }
-	
+
 	  function DiffEdit(path, origin, value) {
 	    DiffEdit.super_.call(this, 'E', path);
 	    Object.defineProperty(this, 'lhs', {
@@ -26917,7 +26932,7 @@ module.exports =
 	    });
 	  }
 	  inherits(DiffEdit, Diff);
-	
+
 	  function DiffNew(path, value) {
 	    DiffNew.super_.call(this, 'N', path);
 	    Object.defineProperty(this, 'rhs', {
@@ -26926,7 +26941,7 @@ module.exports =
 	    });
 	  }
 	  inherits(DiffNew, Diff);
-	
+
 	  function DiffDeleted(path, value) {
 	    DiffDeleted.super_.call(this, 'D', path);
 	    Object.defineProperty(this, 'lhs', {
@@ -26935,7 +26950,7 @@ module.exports =
 	    });
 	  }
 	  inherits(DiffDeleted, Diff);
-	
+
 	  function DiffArray(path, index, item) {
 	    DiffArray.super_.call(this, 'A', path);
 	    Object.defineProperty(this, 'index', {
@@ -26948,20 +26963,20 @@ module.exports =
 	    });
 	  }
 	  inherits(DiffArray, Diff);
-	
+
 	  function arrayRemove(arr, from, to) {
 	    var rest = arr.slice((to || from) + 1 || arr.length);
 	    arr.length = from < 0 ? arr.length + from : from;
 	    arr.push.apply(arr, rest);
 	    return arr;
 	  }
-	
+
 	  function realTypeOf(subject) {
 	    var type = typeof subject;
 	    if (type !== 'object') {
 	      return type;
 	    }
-	
+
 	    if (subject === Math) {
 	      return 'math';
 	    } else if (subject === null) {
@@ -26975,7 +26990,7 @@ module.exports =
 	    }
 	    return 'object';
 	  }
-	
+
 	  function deepDiff(lhs, rhs, changes, prefilter, path, key, stack) {
 	    path = path || [];
 	    var currentPath = path.slice(0);
@@ -27037,7 +27052,7 @@ module.exports =
 	      }
 	    }
 	  }
-	
+
 	  function accumulateDiff(lhs, rhs, prefilter, accum) {
 	    accum = accum || [];
 	    deepDiff(lhs, rhs,
@@ -27049,7 +27064,7 @@ module.exports =
 	      prefilter);
 	    return (accum.length) ? accum : undefined;
 	  }
-	
+
 	  function applyArrayChange(arr, index, change) {
 	    if (change.path && change.path.length) {
 	      var it = arr[index],
@@ -27085,7 +27100,7 @@ module.exports =
 	    }
 	    return arr;
 	  }
-	
+
 	  function applyChange(target, source, change) {
 	    if (target && source && change && change.kind) {
 	      var it = target,
@@ -27111,7 +27126,7 @@ module.exports =
 	      }
 	    }
 	  }
-	
+
 	  function revertArrayChange(arr, index, change) {
 	    if (change.path && change.path.length) {
 	      // the structure of the object at the index has changed...
@@ -27153,7 +27168,7 @@ module.exports =
 	    }
 	    return arr;
 	  }
-	
+
 	  function revertChange(target, source, change) {
 	    if (target && source && change && change.kind) {
 	      var it = target,
@@ -27186,7 +27201,7 @@ module.exports =
 	      }
 	    }
 	  }
-	
+
 	  function applyDiff(target, source, filter) {
 	    if (target && source) {
 	      var onChange = function(change) {
@@ -27197,9 +27212,9 @@ module.exports =
 	      deepDiff(target, source, onChange);
 	    }
 	  }
-	
+
 	  Object.defineProperties(accumulateDiff, {
-	
+
 	    diff: {
 	      value: accumulateDiff,
 	      enumerable: true
@@ -27239,12 +27254,11 @@ module.exports =
 	      enumerable: true
 	    }
 	  });
-	
+
 	  return accumulateDiff;
 	}));
-	
+
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=index.js.map
