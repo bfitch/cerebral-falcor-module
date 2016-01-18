@@ -1,10 +1,5 @@
-import mocha from 'mocha';
-import chai from 'chai';
-
-const describe = mocha.describe;
-const it       = mocha.it;
-const expect   = chai.expect;
-
+import {describe, it} from 'mocha';
+import {expect} from 'chai';
 import FalcorModule from '../index';
 
 describe('FalcorModule', () => {

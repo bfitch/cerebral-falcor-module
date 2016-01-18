@@ -3,18 +3,23 @@ import HTTPDataSource from 'falcor-http-datasource';
 import expandCache from 'falcor-expand-cache';
 import deepDiff from 'deep-diff';
 
-export default (options = {}) => {
+export default (options = {}, falcor = {}) => {
   return (module) => {
-    module.alias('cerebral-module-falcor');
 
-    const fullOptions = Object.assign({
+    const moduleOptions = Object.assign({
       initialState: {},
-      dataSource:   '/model.json',
       verbose:      false
     }, options);
-    const {initialState, dataSource, verbose} = fullOptions;
 
-    module.state(initialState);
+    const {initialState, verbose} = moduleOptions;
+
+    const falcorOptions = Object.assign({
+      jsonGraphUrl: '/model.json',
+    }, falcor);
+
+    const {jsonGraphUrl, ...modelOptions} = falcorOptions;
+    const source                          = new HTTPDataSource(jsonGraphUrl);
+    let falcorModel                       = new falcor.Model(Object.assign({source}, modelOptions));
 
     // Calculate falcor changes and apply them to the module's scoped state
     const syncCerebral = [
@@ -59,10 +64,11 @@ export default (options = {}) => {
       }
     ];
 
-    module.signalsSync({syncCerebral});
+    module.alias('cerebral-module-falcor');
 
-    const source      = new HTTPDataSource(dataSource);
-    const falcorModel = new falcor.Model({source});
+    module.state(initialState);
+
+    module.signalsSync({syncCerebral});
 
     module.services({
       get(query) {
@@ -77,6 +83,24 @@ export default (options = {}) => {
         // refSuffixes  - {Array.<PathSet>} paths to retrieve from the targets of JSONGraph References in the function's response.
         // thisPaths    - {Array.<PathSet>} paths to retrieve from function's this object after successful function execution
         return falcorModel.call(functionPath, args, refSuffixes, thisPaths);
+      },
+      batch(...args) {
+        falcorModel = falcorModel.batch(...args);
+      },
+      boxValues() {
+        falcorModel = falcorModel.boxValues();
+      },
+      treatErrorsAsValues() {
+        falcorModel = falcorModel.treatErrorsAsValues();
+      },
+      unbatch() {
+        falcorModel = falcorModel.unbatch();
+      },
+      unboxValues() {
+        falcorModel = falcorModel.unboxValues();
+      },
+      withoutDataSource() {
+        falcorModel = falcorModel.withoutDataSource();
       }
     });
 
